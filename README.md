@@ -77,6 +77,20 @@ Once the server is running, access the interactive documentation:
 - **Redoc**: [http://127.0.0.1:8000/api/schema/](http://127.0.0.1:8000/api/schema/)
 
 ## 🧪 Running Tests
+
+### Standard Tests
 ```bash
-python manage.py test store
+python manage.py test store core
+```
+
+### With Coverage
+```bash
+# Run tests with coverage measurement
+coverage run --source='store,core' manage.py test store core
+
+# View report in terminal
+coverage report
+
+# Generate HTML report
+coverage html
 ```

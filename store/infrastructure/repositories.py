@@ -7,9 +7,19 @@ from store.infrastructure.mappers import PlantItemMapper
 
 class DjangoPlantItemRepository(PlantItemRepository):
     def save(self, plant_item: PlantItem) -> PlantItem:
-        model = PlantItemMapper.to_db(plant_item)
-        model.save()
-        # Refresh to get auto-generated fields if any (like created_at if we didn't set it, but we did)
+        defaults = {
+            'name': plant_item.name,
+            'description': plant_item.description,
+            'price': plant_item.price,
+            'stock': plant_item.stock,
+            'is_available': plant_item.is_available,
+            'created_at': plant_item.created_at
+        }
+        
+        model, created = PlantItemModel.objects.update_or_create(
+            id=plant_item.id,
+            defaults=defaults
+        )
         return PlantItemMapper.to_domain(model)
 
     def get_by_id(self, item_id: UUID) -> Optional[PlantItem]:

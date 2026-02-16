@@ -1,0 +1,23 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__
+db.sqlite3
+media
+staticfiles
+.env
+.venv
+.agents
+venv
+ENV
+env
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+
+# Project specific
+.gemini

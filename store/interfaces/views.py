@@ -29,11 +29,11 @@ class PlantItemView(viewsets.ViewSet):
     @inject
     def __init__(
         self,
-        create_use_case: CreatePlantItem,
-        list_use_case: ListPlantItems,
-        get_use_case: GetPlantItem,
-        update_use_case: UpdatePlantItem,
-        delete_use_case: DeletePlantItem,
+        create_use_case: CreatePlantItem = None,
+        list_use_case: ListPlantItems = None,
+        get_use_case: GetPlantItem = None,
+        update_use_case: UpdatePlantItem = None,
+        delete_use_case: DeletePlantItem = None,
         **kwargs,
     ):
         self.create_use_case = create_use_case

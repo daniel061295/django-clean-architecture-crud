@@ -1,0 +1,37 @@
+from uuid import UUID
+from typing import Optional
+from store.sale.domain.repositories import SaleRepository
+from store.sale.application.dtos import SaleResponseDTO, SaleDetailResponseDTO
+
+class GetSale:
+    """
+    Use case for retrieving a single Sale.
+    """
+
+    def __init__(self, repository: SaleRepository):
+        self.repository = repository
+
+    def execute(self, sale_id: UUID) -> Optional[SaleResponseDTO]:
+        sale = self.repository.get_by_id(sale_id)
+        if not sale:
+            return None
+        
+        details_dtos = [
+            SaleDetailResponseDTO(
+                id=d.id,
+                plant_item_id=d.plant_item_id,
+                quantity=d.quantity,
+                unit_price=d.unit_price,
+                subtotal=d.subtotal
+            )
+            for d in sale.details
+        ]
+            
+        return SaleResponseDTO(
+            id=sale.id,
+            date=sale.date,
+            total=sale.total,
+            status=sale.status,
+            created_at=sale.created_at,
+            details=details_dtos
+        )

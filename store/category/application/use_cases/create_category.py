@@ -11,6 +11,15 @@ class CreateCategory:
         self.repository = repository
 
     def execute(self, dto: CreateCategoryDTO) -> CategoryResponseDTO:
+        """
+        Executes the create category use case.
+
+        Args:
+            dto: CreateCategoryDTO with category data.
+
+        Returns:
+            CategoryResponseDTO with created category data.
+        """
         if self.repository.exists_by_name(dto.name):
             raise ValueError(f"Category with name '{dto.name}' already exists.")
 

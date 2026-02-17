@@ -8,6 +8,15 @@ class CategoryMapper:
 
     @staticmethod
     def to_domain(model: CategoryModel) -> Category:
+        """
+        Converts a CategoryModel to a Category domain entity.
+
+        Args:
+            model: CategoryModel to convert.
+
+        Returns:
+            Category domain entity.
+        """
         return Category(
             id=model.id,
             name=model.name,
@@ -19,6 +28,15 @@ class CategoryMapper:
 
     @staticmethod
     def to_db(entity: Category) -> CategoryModel:
+        """
+        Converts a Category domain entity to a CategoryModel Django model.
+
+        Args:
+            entity: Category domain entity to convert.
+
+        Returns:
+            CategoryModel Django model.
+        """
         return CategoryModel(
             id=entity.id,
             name=entity.name,

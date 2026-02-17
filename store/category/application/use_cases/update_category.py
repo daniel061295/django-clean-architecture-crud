@@ -10,6 +10,15 @@ class UpdateCategory:
         self.repository = repository
 
     def execute(self, dto: UpdateCategoryDTO) -> CategoryResponseDTO:
+        """
+        Executes the update category use case.
+
+        Args:
+            dto: UpdateCategoryDTO with category data.
+
+        Returns:
+            CategoryResponseDTO with updated category data.
+        """
         category = self.repository.get_by_id(dto.id)
         if not category:
             raise ValueError(f"Category with id {dto.id} not found.")

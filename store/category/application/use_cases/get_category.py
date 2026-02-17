@@ -12,6 +12,15 @@ class GetCategory:
         self.repository = repository
 
     def execute(self, category_id: UUID) -> Optional[CategoryResponseDTO]:
+        """
+        Executes the get category use case.
+
+        Args:
+            category_id: UUID of the category to retrieve.
+
+        Returns:
+            CategoryResponseDTO with category data.
+        """
         category = self.repository.get_by_id(category_id)
         if not category:
             return None

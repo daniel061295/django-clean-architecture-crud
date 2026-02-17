@@ -97,7 +97,7 @@ def test_register_ajuste_movement(mock_atomic):
     use_case.execute(dto)
     
     updated_plant = plant_repo.get_by_id(plant.id)
-    assert updated_plant.stock == 7 # 5 + 2 (Based on implementation assumption)
+    assert updated_plant.stock == 2 # Set to specific value (User changed logic to absolute set)
 
 def test_get_inventory_movement_use_case():
     # Setup

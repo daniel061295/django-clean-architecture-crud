@@ -5,6 +5,9 @@ from enum import Enum
 from typing import Optional
 
 class MovementType(Enum):
+    """
+    Enum representing the type of inventory movement.
+    """ 
     ENTRADA = "ENTRADA"
     SALIDA = "SALIDA"
     AJUSTE = "AJUSTE"
@@ -24,6 +27,18 @@ class InventoryMovement:
 
     @classmethod
     def create(cls, plant_item_id: UUID, movement_type: MovementType, quantity: int, reason: str = None) -> "InventoryMovement":
+        """
+        Creates a new InventoryMovement.
+
+        Args:
+            plant_item_id: UUID of the plant item.
+            movement_type: Type of inventory movement.
+            quantity: Quantity of the inventory movement.
+            reason: Reason for the inventory movement.
+
+        Returns:
+            InventoryMovement with the created data.
+        """
         if quantity <= 0:
             raise ValueError("Quantity must be greater than 0.")
         

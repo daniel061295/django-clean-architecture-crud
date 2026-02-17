@@ -12,6 +12,15 @@ class GetInventoryMovement:
         self.repository = repository
 
     def execute(self, movement_id: UUID) -> Optional[InventoryMovementResponseDTO]:
+        """
+        Executes the use case for retrieving a single Inventory Movement.
+
+        Args:
+            movement_id: UUID of the inventory movement.
+
+        Returns:
+            InventoryMovementResponseDTO with the retrieved data.
+        """
         movement = self.repository.get_by_id(movement_id)
         if not movement:
             return None

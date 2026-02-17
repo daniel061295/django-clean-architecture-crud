@@ -12,11 +12,29 @@ class DjangoInventoryMovementRepository(InventoryMovementRepository):
     """
 
     def save(self, movement: InventoryMovement) -> InventoryMovement:
+        """
+        Saves an InventoryMovement.
+
+        Args:
+            movement: InventoryMovement to save.
+
+        Returns:
+            InventoryMovement with the saved data.
+        """
         model = InventoryMovementMapper.to_db(movement)
         model.save()
         return InventoryMovementMapper.to_domain(model)
 
     def get_by_id(self, movement_id: UUID) -> Optional[InventoryMovement]:
+        """
+        Retrieves an InventoryMovement by its ID.
+
+        Args:
+            movement_id: UUID of the inventory movement.
+
+        Returns:
+            InventoryMovement with the retrieved data.
+        """
         try:
             model = InventoryMovementModel.objects.get(id=movement_id)
             return InventoryMovementMapper.to_domain(model)
@@ -24,6 +42,17 @@ class DjangoInventoryMovementRepository(InventoryMovementRepository):
             return None
 
     def list(self, page: int, page_size: int, filters: dict) -> Tuple[List[InventoryMovement], int]:
+        """
+        Retrieves a list of InventoryMovements.
+
+        Args:
+            page: Page number.
+            page_size: Number of items per page.
+            filters: Dictionary of filters.
+
+        Returns:
+            Tuple of InventoryMovements and total count.
+        """ 
         queryset = InventoryMovementModel.objects.all().order_by("-timestamp")
 
         if filters.get("plant_item_id"):

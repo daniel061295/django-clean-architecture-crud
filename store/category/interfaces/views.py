@@ -19,6 +19,8 @@ class CategoryView(viewsets.ViewSet):
     ViewSet for managing Categories.
     """
 
+    INVALID_UUID = "Invalid UUID"
+
     @inject
     def __init__(self, 
                  create_use_case: CreateCategory = None,
@@ -85,7 +87,7 @@ class CategoryView(viewsets.ViewSet):
         try:
             category_id = UUID(pk)
         except ValueError:
-             return Response({"error": "Invalid UUID"}, status=status.HTTP_400_BAD_REQUEST)
+             return Response({"error": self.INVALID_UUID}, status=status.HTTP_400_BAD_REQUEST)
 
         result = self.get_use_case.execute(category_id)
         if not result:
@@ -100,7 +102,7 @@ class CategoryView(viewsets.ViewSet):
         try:
             category_id = UUID(pk)
         except ValueError:
-             return Response({"error": "Invalid UUID"}, status=status.HTTP_400_BAD_REQUEST)
+             return Response({"error": self.INVALID_UUID}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = UpdateCategorySerializer(data=request.data)
         if serializer.is_valid():
@@ -119,7 +121,7 @@ class CategoryView(viewsets.ViewSet):
         try:
             category_id = UUID(pk)
         except ValueError:
-             return Response({"error": "Invalid UUID"}, status=status.HTTP_400_BAD_REQUEST)
+             return Response({"error": self.INVALID_UUID}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             self.delete_use_case.execute(category_id)

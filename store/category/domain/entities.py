@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Optional
@@ -46,9 +46,9 @@ class Category:
         Updates category attributes.
         """
         if name is not None:
-             if not name:
+            if not name:
                 raise ValueError("Category name cannot be empty.")
-             self.name = name
+            self.name = name
         
         if description is not None:
             self.description = description

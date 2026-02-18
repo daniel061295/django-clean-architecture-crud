@@ -1,40 +1,59 @@
 # Django Clean Architecture - Plant Store API
 
-This project implements a RESTful API for managing Plant Items using **Django Rest Framework (DRF)** and following the principles of **Clean Architecture**.
+This project implements a RESTful API for managing a Plant Store (Items, Categories, Providers, Inventory, and Sales) using **Django Rest Framework (DRF)** and following the principles of **Clean Architecture**.
 
-It demonstrates how to decouple the business logic from the framework (`Django`), ensuring scalability, testability, and maintainability.
+It demonstrates how to decouple the business logic from the framework (`Django`), ensuring scalability, testability, and maintainability by using **Dependency Injection** and a modular structure.
 
 ## 🚀 Features
 
 - **Clean Architecture Layers**:
-  - `Domain` (Pure Python, no Django dependencies)
-  - `Application` (Use Cases, DTOs)
-  - `Infrastructure` (Django ORM, Mappers)
-  - `Interfaces` (DRF Views, Serializers)
-- **Shared Core**: Shared infrastructure components and global exception handling.
-- **RESTful API**: Complete CRUD for `PlantItem`.
+  - `Domain`: Pure Python entities and repository interfaces.
+  - `Application`: Use Cases and DTOs.
+  - `Infrastructure`: Data persistence (Django ORM), Mappers, and Repository implementations.
+  - `Interface Adapters`: DRF Views, Serializers, and URLs.
+- **Modular Design**: The project is organized by business domains (Category, PlantItem, Provider, Inventory, Sale).
+- **Dependency Injection**: Decoupled components using `injector` and `django-injector`, with modular DI configuration.
+- **Complete CRUD Operations**:
+  - Full CRUD for Categories, Plant Items, and Providers.
+  - Inventory Movements and Sales management.
+- **RESTful API**: Structured endpoints for all entities.
 - **API Documentation**: Automated Swagger/OpenAPI documentation via `drf-spectacular`.
-- **Linting**: Pre-configured `pylint-django` for code quality.
+- **Advanced Testing**: Comprehensive test suite using `pytest`.
 
 ## 🛠️ Tech Stack
 
-- **Python**: 3.12+
-- **Django**: 5.x / 6.x
-- **Django Rest Framework**: 3.x
-- **drf-spectacular**: OpenAPI Schema generation
-- **Pylint**: Code analysis
+- **Python**: 3.14+
+- **Django**: 6.0.x
+- **Django Rest Framework**: 3.15+
+- **Injector**: Dependency injection library.
+- **django-injector**: Django integration for injector.
+- **drf-spectacular**: OpenAPI Schema generation.
+- **pytest-django**: Testing framework.
 
 ## 📂 Project Structure
 
+The project follows a modular structure where each business entity has its own Clean Architecture layers:
+
 ```bash
 store/
-├── domain/           # Enterprise Business Rules (Entities, Exceptions, Repository Interfaces)
-├── application/      # Application Business Rules (Use Cases, DTOs)
-├── infrastructure/   # Frameworks & Drivers (Models, Mappers, Repository Implementations)
-├── interfaces/       # Interface Adapters (Views, Serializers, URLs)
-└── tests/            # Unit and Integration Tests
-core/                 # Shared Kernel (Abstract Models, Global Handlers)
+├── category/            # Category domain logic & DI
+├── plant_item/          # Plant Item domain logic & DI
+├── provider/            # Provider domain logic & DI
+├── inventory_movement/  # Inventory management logic & DI
+├── sale/                # Sales management logic & DI
+├── di.py                # Main Dependency Injection aggregator
+├── models.py            # Shared Django persistence models
+└── urls.py              # Application-wide routing
+tests/                   # Comprehensive test suite organized by layers
+core/                    # Shared Kernel (Cross-cutting concerns)
 ```
+
+Each module contains:
+- `domain/`: Entities, repository interfaces, and domain exceptions.
+- `application/`: Use cases and DTOs.
+- `infrastructure/`: Repository implementations and Object-Mapping logic.
+- `interfaces/`: Views and Serializers.
+- `di.py`: Entity-specific dependency injection configuration.
 
 ## ⚡ Getting Started
 
@@ -60,7 +79,6 @@ pip install -r requirements.txt
 
 ### 4. Run Migrations
 ```bash
-python manage.py makemigrations
 python manage.py migrate
 ```
 
@@ -71,26 +89,29 @@ python manage.py runserver
 
 ## 📖 API Documentation
 
-Once the server is running, access the interactive documentation:
+Access the interactive documentation at:
 
 - **Swagger UI**: [http://127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/)
 - **Redoc**: [http://127.0.0.1:8000/api/schema/](http://127.0.0.1:8000/api/schema/)
 
 ## 🧪 Running Tests
 
+The project uses `pytest` for testing. The configuration in `pytest.ini` ensures proper package discovery by treating the `tests/` directory as a package.
+
 ### Standard Tests
 ```bash
-python manage.py test store core
+pytest
 ```
 
-### With Coverage
+### Specific Test Modules
 ```bash
-# Run tests with coverage measurement
-coverage run --source='store,core' manage.py test store core
-
-# View report in terminal
-coverage report
-
-# Generate HTML report
-coverage html
+pytest tests/domain/
+pytest tests/application/
 ```
+
+## 🛠️ Maintenance & Refactoring
+
+The project uses a modular DI approach. If you add a new entity:
+1. Create a `di.py` in the entity's folder.
+2. Define a `Module` and its providers.
+3. Install the module in `store/di.py` within the `StoreModule.configure` method.

@@ -1,11 +1,11 @@
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple
 from uuid import UUID
+from django.core.paginator import Paginator
 from django.db import transaction
 from store.sale.domain.entities import Sale
 from store.sale.domain.repositories import SaleRepository
 from store.sale.infrastructure.models import SaleModel, SaleDetailModel
 from store.sale.infrastructure.mappers import SaleMapper
-from django.core.paginator import Paginator
 
 class DjangoSaleRepository(SaleRepository):
     """
@@ -23,17 +23,10 @@ class DjangoSaleRepository(SaleRepository):
                     "created_at": sale.created_at
                 }
             )
-            
-            # Sync details: Delete all and recreate (simple approach for now)
-            # Or assume logical append-only updates for valid use cases?
-            # Since "AddDetail" is a use case, we might just be adding.
-            # But let's be safe.
-            # If we delete all, we might lose ID consistency if we care about Detail IDs.
-            # But Domain Entity `details` has the source of truth.
-            
+
             # Identify existing IDs in DB
             existing_ids = set(SaleDetailModel.objects.filter(sale=sale_model).values_list('id', flat=True))
-            current_ids = set(d.id for d in sale.details)
+            current_ids = {d.id for d in sale.details}
             
             # Delete removed
             to_delete = existing_ids - current_ids
@@ -52,10 +45,7 @@ class DjangoSaleRepository(SaleRepository):
                         "subtotal": detail.subtotal
                     }
                 )
-                
-            # Refresh from DB to be sure or just return what we have? 
-            # Re-fetching handles auto-fields if any, but we use UUIDs.
-            # Let's re-fetch to use shared mapper logic including relationships.
+
             return self.get_by_id(sale.id)
 
     def get_by_id(self, sale_id: UUID) -> Optional[Sale]:

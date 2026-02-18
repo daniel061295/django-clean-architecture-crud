@@ -1,16 +1,13 @@
 from django.db import models
-import uuid
+from core.models import ActivableModel
+from core.models import BaseModel
 
-class CategoryModel(models.Model):
+class CategoryModel(BaseModel, ActivableModel):
     """
     Django ORM model for Category.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True, null=False, blank=False)
     description = models.TextField(null=True, blank=True)
-    active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "categories"

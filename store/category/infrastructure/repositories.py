@@ -1,10 +1,10 @@
 from typing import List, Optional, Tuple
 from uuid import UUID
+from django.core.paginator import Paginator
 from store.category.domain.entities import Category
 from store.category.domain.repositories import CategoryRepository
 from store.category.infrastructure.models import CategoryModel
 from store.category.infrastructure.mappers import CategoryMapper
-from django.core.paginator import Paginator
 
 class DjangoCategoryRepository(CategoryRepository):
     """

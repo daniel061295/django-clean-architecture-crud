@@ -1,10 +1,10 @@
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple
 from uuid import UUID
+from django.core.paginator import Paginator
 from store.inventory_movement.domain.entities import InventoryMovement
 from store.inventory_movement.domain.repositories import InventoryMovementRepository
 from store.inventory_movement.infrastructure.models import InventoryMovementModel
 from store.inventory_movement.infrastructure.mappers import InventoryMovementMapper
-from django.core.paginator import Paginator
 
 class DjangoInventoryMovementRepository(InventoryMovementRepository):
     """

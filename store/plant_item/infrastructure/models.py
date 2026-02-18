@@ -1,8 +1,8 @@
 from django.db import models
-from core.models import UUIDModel, TimeStampedModel
+from core.models import BaseModel
 
 
-class PlantItemModel(UUIDModel, TimeStampedModel):
+class PlantItemModel(BaseModel):
     """
     Django ORM model for storing PlantItems.
 
@@ -18,9 +18,6 @@ class PlantItemModel(UUIDModel, TimeStampedModel):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField()
-    # is_available is derived from stock in domain, but we can store it for easier querying or calculate it.
-    # The requirement says "is_available debe depender del stock".
-    # Let's simple store it to match the entity and query efficiently.
     is_available = models.BooleanField(default=False)
 
     class Meta:

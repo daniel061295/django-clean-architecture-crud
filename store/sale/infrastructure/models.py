@@ -1,16 +1,14 @@
 from django.db import models
-import uuid
+from core.models import BaseModel
 from store.sale.domain.entities import SaleStatus
 
-class SaleModel(models.Model):
+class SaleModel(BaseModel):
     """
     Django ORM model for Sale.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     date = models.DateTimeField()
     total = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=50, choices=[(tag.name, tag.value) for tag in SaleStatus])
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "sales"
@@ -21,11 +19,10 @@ class SaleModel(models.Model):
     def __str__(self):
         return f"Sale {self.id} - {self.status}"
 
-class SaleDetailModel(models.Model):
+class SaleDetailModel(BaseModel):
     """
     Django ORM model for SaleDetail.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sale = models.ForeignKey(SaleModel, on_delete=models.CASCADE, related_name="details")
     plant_item_id = models.UUIDField(null=False)
     quantity = models.IntegerField()

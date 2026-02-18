@@ -30,3 +30,27 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True
+
+class ActivableModel(models.Model):
+    """
+    Abstract base model that adds an active field.
+
+    Attributes:
+        active (BooleanField): The active status of the object.
+    """
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        abstract = True
+
+class BaseModel(UUIDModel, TimeStampedModel):
+    """
+    Abstract base model that combines UUIDModel, and TimeStampedModel.
+
+    Attributes:
+        id (UUIDField): The primary key, automatically generated using uuid4.
+        created_at (DateTimeField): The timestamp when the object was created.
+        updated_at (DateTimeField): The timestamp when the object was last updated.
+    """
+    class Meta:
+        abstract = True

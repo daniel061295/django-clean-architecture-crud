@@ -116,7 +116,10 @@ class PlantItemView(viewsets.ViewSet):
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses=PlantItemResponseSerializer)
+    @extend_schema(
+        responses=PlantItemResponseSerializer,
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def retrieve(self, request, pk=None):
         """
         Retrieves a PlantItem by ID.
@@ -132,7 +135,11 @@ class PlantItemView(viewsets.ViewSet):
         response_serializer = PlantItemResponseSerializer(result)
         return Response(response_serializer.data)
 
-    @extend_schema(request=UpdatePlantItemSerializer, responses=PlantItemResponseSerializer)
+    @extend_schema(
+        request=UpdatePlantItemSerializer, 
+        responses=PlantItemResponseSerializer,
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def update(self, request, pk=None):
         """
         Updates a PlantItem by ID.
@@ -152,7 +159,10 @@ class PlantItemView(viewsets.ViewSet):
             return Response(response_serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={204: None})
+    @extend_schema(
+        responses={204: None},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def destroy(self, request, pk=None):
         """
         Deletes a PlantItem by ID.

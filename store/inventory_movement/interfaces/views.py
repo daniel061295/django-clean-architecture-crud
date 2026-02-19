@@ -68,7 +68,10 @@ class InventoryMovementView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: InventoryMovementResponseSerializer})
+    @extend_schema(
+        responses={200: InventoryMovementResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def retrieve(self, request, pk=None):
         """Retrieve an inventory movement by ID."""
         try:

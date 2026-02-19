@@ -77,7 +77,10 @@ class ProviderView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: ProviderResponseSerializer})
+    @extend_schema(
+        responses={200: ProviderResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def retrieve(self, request, pk=None):
         """Retrieve a provider by ID."""
         try:
@@ -92,7 +95,11 @@ class ProviderView(viewsets.ViewSet):
         serializer = ProviderResponseSerializer(result)
         return Response(serializer.data)
 
-    @extend_schema(request=UpdateProviderSerializer, responses={200: ProviderResponseSerializer})
+    @extend_schema(
+        request=UpdateProviderSerializer, 
+        responses={200: ProviderResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def update(self, request, pk=None):
         """Update a provider."""
         try:
@@ -111,7 +118,10 @@ class ProviderView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @extend_schema(responses={204: None})
+    @extend_schema(
+        responses={204: None},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def destroy(self, request, pk=None):
         """Delete a provider."""
         try:

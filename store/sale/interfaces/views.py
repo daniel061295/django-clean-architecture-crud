@@ -20,6 +20,7 @@ class SaleView(viewsets.ViewSet):
     """
     ViewSet for managing Sales.
     """
+    serializer_class = SaleResponseSerializer
 
     @inject
     def __init__(self, 
@@ -75,7 +76,10 @@ class SaleView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: SaleResponseSerializer})
+    @extend_schema(
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)],
+        responses={200: SaleResponseSerializer}
+    )
     def retrieve(self, request, pk=None):
         """Retrieve a sale by ID."""
         try:
@@ -90,7 +94,11 @@ class SaleView(viewsets.ViewSet):
         serializer = SaleResponseSerializer(result)
         return Response(serializer.data)
 
-    @extend_schema(request=AddSaleDetailSerializer, responses={200: SaleResponseSerializer})
+    @extend_schema(
+        request=AddSaleDetailSerializer, 
+        responses={200: SaleResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     @action(detail=True, methods=["post"], url_path="items")
     def add_item(self, request, pk=None):
         """Adds an item to an existing Sale."""
@@ -110,7 +118,10 @@ class SaleView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: SaleResponseSerializer})
+    @extend_schema(
+        responses={200: SaleResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     @action(detail=True, methods=["post"], url_path="complete")
     def complete(self, request, pk=None):
         """Completes the sale and updates inventory."""

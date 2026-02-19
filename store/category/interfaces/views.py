@@ -81,7 +81,10 @@ class CategoryView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: CategoryResponseSerializer})
+    @extend_schema(
+        responses={200: CategoryResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def retrieve(self, request, pk=None):
         """Retrieve a category by ID."""
         try:
@@ -96,7 +99,11 @@ class CategoryView(viewsets.ViewSet):
         serializer = CategoryResponseSerializer(result)
         return Response(serializer.data)
 
-    @extend_schema(request=UpdateCategorySerializer, responses={200: CategoryResponseSerializer})
+    @extend_schema(
+        request=UpdateCategorySerializer, 
+        responses={200: CategoryResponseSerializer},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def update(self, request, pk=None):
         """Update a category."""
         try:
@@ -115,7 +122,10 @@ class CategoryView(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={204: None})
+    @extend_schema(
+        responses={204: None},
+        parameters=[OpenApiParameter("id", UUID, location=OpenApiParameter.PATH)]
+    )
     def destroy(self, request, pk=None):
         """Delete a category."""
         try:

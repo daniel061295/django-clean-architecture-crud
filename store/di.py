@@ -4,6 +4,7 @@ from store.plant_item.di import PlantItemModule
 from store.provider.di import ProviderModule
 from store.inventory_movement.di import InventoryMovementModule
 from store.sale.di import SaleModule
+from store.plant_health.di import PlantHealthModule
 
 class StoreModule(Module):
     """
@@ -17,3 +18,4 @@ class StoreModule(Module):
         binder.install(ProviderModule())
         binder.install(InventoryMovementModule())
         binder.install(SaleModule())
+        binder.install(PlantHealthModule())

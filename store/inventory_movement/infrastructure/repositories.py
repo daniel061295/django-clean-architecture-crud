@@ -1,67 +1,37 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Type
 from uuid import UUID
-from django.core.paginator import Paginator
+from django.db import models
 from store.inventory_movement.domain.entities import InventoryMovement
 from store.inventory_movement.domain.repositories import InventoryMovementRepository
 from store.inventory_movement.infrastructure.models import InventoryMovementModel
 from store.inventory_movement.infrastructure.mappers import InventoryMovementMapper
+from core.infrastructure.django.repositories import DjangoBaseRepository
 
-class DjangoInventoryMovementRepository(InventoryMovementRepository):
+class DjangoInventoryMovementRepository(DjangoBaseRepository[InventoryMovement, InventoryMovementModel], InventoryMovementRepository):
     """
     Django implementation of the InventoryMovementRepository interface.
     """
 
-    def save(self, movement: InventoryMovement) -> InventoryMovement:
-        """
-        Saves an InventoryMovement.
+    @property
+    def model_class(self) -> Type[InventoryMovementModel]:
+        return InventoryMovementModel
 
-        Args:
-            movement: InventoryMovement to save.
+    def _to_db_defaults(self, entity: InventoryMovement) -> dict:
+        return {
+            "plant_item_id": entity.plant_item_id,
+            "quantity": entity.quantity,
+            "movement_type": entity.movement_type.value,
+            "reason": entity.reason,
+            "timestamp": entity.timestamp
+        }
 
-        Returns:
-            InventoryMovement with the saved data.
-        """
-        model = InventoryMovementMapper.to_db(movement)
-        model.save()
-        return InventoryMovementMapper.to_domain(model)
+    def _to_domain_entity(self, model_instance: InventoryMovementModel) -> InventoryMovement:
+        return InventoryMovementMapper.to_domain(model_instance)
 
-    def get_by_id(self, movement_id: UUID) -> Optional[InventoryMovement]:
-        """
-        Retrieves an InventoryMovement by its ID.
-
-        Args:
-            movement_id: UUID of the inventory movement.
-
-        Returns:
-            InventoryMovement with the retrieved data.
-        """
-        try:
-            model = InventoryMovementModel.objects.get(id=movement_id)
-            return InventoryMovementMapper.to_domain(model)
-        except InventoryMovementModel.DoesNotExist:
-            return None
-
-    def list(self, page: int, page_size: int, filters: dict) -> Tuple[List[InventoryMovement], int]:
-        """
-        Retrieves a list of InventoryMovements.
-
-        Args:
-            page: Page number.
-            page_size: Number of items per page.
-            filters: Dictionary of filters.
-
-        Returns:
-            Tuple of InventoryMovements and total count.
-        """ 
-        queryset = InventoryMovementModel.objects.all().order_by("-timestamp")
-
+    def _apply_filters(self, queryset: models.QuerySet, filters: dict) -> models.QuerySet:
+        queryset = queryset.order_by("-timestamp")
         if filters.get("plant_item_id"):
              queryset = queryset.filter(plant_item_id=filters["plant_item_id"])
-        
         if filters.get("movement_type"):
             queryset = queryset.filter(movement_type=filters["movement_type"])
-
-        paginator = Paginator(queryset, page_size)
-        page_obj = paginator.get_page(page)
-        
-        return [InventoryMovementMapper.to_domain(item) for item in page_obj], paginator.count
+        return queryset

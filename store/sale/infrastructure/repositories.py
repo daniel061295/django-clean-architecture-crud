@@ -1,39 +1,61 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Type
 from uuid import UUID
-from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import transaction, models
 from store.sale.domain.entities import Sale
 from store.sale.domain.repositories import SaleRepository
 from store.sale.infrastructure.models import SaleModel, SaleDetailModel
 from store.sale.infrastructure.mappers import SaleMapper
+from core.infrastructure.django.repositories import DjangoBaseRepository
 
-class DjangoSaleRepository(SaleRepository):
+class DjangoSaleRepository(DjangoBaseRepository[Sale, SaleModel], SaleRepository):
     """
     Django implementation of the SaleRepository interface.
     """
 
+    @property
+    def model_class(self) -> Type[SaleModel]:
+        return SaleModel
+
+    def _to_db_defaults(self, entity: Sale) -> dict:
+        return {
+            "date": entity.date,
+            "total": entity.total,
+            "status": entity.status.value,
+            "created_at": entity.created_at
+        }
+
+    def _to_domain_entity(self, model_instance: SaleModel) -> Sale:
+        return SaleMapper.to_domain(model_instance)
+
+    def _apply_filters(self, queryset: models.QuerySet, filters: dict) -> models.QuerySet:
+        queryset = queryset.prefetch_related('details').order_by("-created_at")
+        if filters.get("status"):
+            queryset = queryset.filter(status=filters["status"])
+        return queryset
+
     def save(self, sale: Sale) -> Sale:
+        """
+        Custom save method for Sale that handles setting up details.
+        It overrides the base generic `save()` to include `transaction.atomic()`
+        and `SaleDetailModel` processing.
+        """
         with transaction.atomic():
-            sale_model, created = SaleModel.objects.update_or_create(
-                id=sale.id,
-                defaults={
-                    "date": sale.date,
-                    "total": sale.total,
-                    "status": sale.status.value,
-                    "created_at": sale.created_at
-                }
-            )
+            # Let the base class save the Sale itself
+            sale_domain = super().save(sale)
+            
+            # Now we must retrieve the saved Sale model to attach the details
+            sale_model = SaleModel.objects.get(id=sale_domain.id)
 
             # Identify existing IDs in DB
             existing_ids = set(SaleDetailModel.objects.filter(sale=sale_model).values_list('id', flat=True))
             current_ids = {d.id for d in sale.details}
             
-            # Delete removed
+            # Delete removed details
             to_delete = existing_ids - current_ids
             if to_delete:
                 SaleDetailModel.objects.filter(id__in=to_delete).delete()
             
-            # Save/Update current
+            # Save/Update current details
             for detail in sale.details:
                 SaleDetailModel.objects.update_or_create(
                     id=detail.id,
@@ -46,23 +68,15 @@ class DjangoSaleRepository(SaleRepository):
                     }
                 )
 
+            # It's better to fetch and convert it again using the base getter
             return self.get_by_id(sale.id)
 
     def get_by_id(self, sale_id: UUID) -> Optional[Sale]:
+        """
+        Custom get method to prefetch_related for Sale.
+        """
         try:
-            model = SaleModel.objects.prefetch_related('details').get(id=sale_id)
-            return SaleMapper.to_domain(model)
-        except SaleModel.DoesNotExist:
+            model = self.model_class.objects.prefetch_related('details').get(id=sale_id)
+            return self._to_domain_entity(model)
+        except self.model_class.DoesNotExist:
             return None
-
-    def list(self, page: int, page_size: int, filters: dict) -> Tuple[List[Sale], int]:
-        queryset = SaleModel.objects.prefetch_related('details').all().order_by("-created_at")
-        
-        # Add filtering logic if needed
-        if filters.get("status"):
-            queryset = queryset.filter(status=filters["status"])
-
-        paginator = Paginator(queryset, page_size)
-        page_obj = paginator.get_page(page)
-        
-        return [SaleMapper.to_domain(item) for item in page_obj], paginator.count

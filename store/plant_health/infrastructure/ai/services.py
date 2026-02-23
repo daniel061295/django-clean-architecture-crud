@@ -1,12 +1,10 @@
-import random
 from typing import BinaryIO
-import time
-import os
 import logging
+import json
+from pathlib import Path
 
 from google import genai
-from google.genai import types
-import json
+from google.genai import types, errors
 
 from store.plant_health.domain.entities import PlantHealthReport
 from store.plant_health.domain.interfaces import PlantHealthService
@@ -29,34 +27,28 @@ class GeminiPlantHealthService(PlantHealthService):
         photo.seek(0)
         image_bytes = photo.read()
 
-
         try:
-            report = self._call_gemini_api(image_bytes)
+            report = self.__call_gemini_api(image_bytes)
             return report
 
-        except Exception as e:
-            logging.error(f"Gemini API Error :{e}")
-            raise LowConfidenceError("Service is temporarily busy (Quota Exceeded). Please try again later.") from e
+        except (errors.APIError, errors.ClientError) as e:
+            # Handle specific API Client Errors (like 429)
+            if e.code == 429 or (hasattr(e, 'status_code') and e.status_code == 429):
+                logging.error(f"Gemini API Quota Exceeded: {e}")
+                raise LowConfidenceError("Service is temporarily busy (Quota Exceeded). Please try again later.") from e
+            
+            logging.error(f"Gemini Client/API Error: {e}")
+            raise e
 
-    def _call_gemini_api(self, image_data: bytes) -> PlantHealthReport:
+        except Exception as e:
+            logging.error(f"Unexpected Error during photo analysis: {e}")
+            raise LowConfidenceError("An unexpected error occurred during analysis.") from e
+
+    def __call_gemini_api(self, image_data: bytes) -> PlantHealthReport:
         """
         Direct communication with the model and mapping to PlantHealthReport.
         """
-        prompt = """
-        You are an expert in botany and plant pathology. Analyze this plant image:
-        1. Identify if it is healthy or has pests/diseases.
-        2. Provide a confidence level from 0.0 to 1.0.
-        3. Generate clear treatment steps.
-        
-        JSON Response:
-        {
-          "is_healthy": bool,
-          "diagnosis": "Disease name or 'Healthy'",
-          "confidence": float,
-          "treatment": ["step 1", "step 2"],
-          "urgency_level": "Low" | "Medium" | "High"
-        }
-        """
+        prompt = self.__get_prompt()    
 
         try:
             response = self.client.models.generate_content(
@@ -86,4 +78,14 @@ class GeminiPlantHealthService(PlantHealthService):
             logging.error(f"Error parsing Gemini response: {e}")
             raise ValueError(f"AI returned invalid format: {str(e)}") from e
         except Exception as e:
+            logging.error(f"Unexpected Error during Gemini API call: {e}")
             raise e
+
+    def __get_prompt(self) -> str:
+        """
+        Get the prompt from the file.
+        """
+        prompt_path = Path(__file__).parent / "prompts" / "get_plant_patology.md"
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            prompt = f.read()
+        return prompt

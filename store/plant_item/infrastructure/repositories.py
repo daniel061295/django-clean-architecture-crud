@@ -1,48 +1,36 @@
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Type
 from uuid import UUID
+from django.db import models
 from store.plant_item.domain.entities import PlantItem
 from store.plant_item.domain.repositories import PlantItemRepository
 from store.plant_item.infrastructure.models import PlantItemModel
 from store.plant_item.infrastructure.mappers import PlantItemMapper
+from core.infrastructure.django.repositories import DjangoBaseRepository
 
-class DjangoPlantItemRepository(PlantItemRepository):
+class DjangoPlantItemRepository(DjangoBaseRepository[PlantItem, PlantItemModel], PlantItemRepository):
     """
     Django implementation of the PlantItemRepository interface.
     Uses the Django ORM to persist data.
     """
 
-    def save(self, plant_item: PlantItem) -> PlantItem:
-        """
-        Saves or updates a PlantItem using Django's update_or_create.
-        """
-        defaults = {
-            "name": plant_item.name,
-            "description": plant_item.description,
-            "price": plant_item.price,
-            "stock": plant_item.stock,
-            "is_available": plant_item.is_available,
-            "created_at": plant_item.created_at,
+    @property
+    def model_class(self) -> Type[PlantItemModel]:
+        return PlantItemModel
+
+    def _to_db_defaults(self, entity: PlantItem) -> dict:
+        return {
+            "name": entity.name,
+            "description": entity.description,
+            "price": entity.price,
+            "stock": entity.stock,
+            "is_available": entity.is_available,
+            "created_at": entity.created_at,
         }
 
-        model, _ = PlantItemModel.objects.update_or_create(id=plant_item.id, defaults=defaults)
-        return PlantItemMapper.to_domain(model)
+    def _to_domain_entity(self, model_instance: PlantItemModel) -> PlantItem:
+        return PlantItemMapper.to_domain(model_instance)
 
-    def get_by_id(self, item_id: UUID) -> Optional[PlantItem]:
-        """
-        Retrieves a PlantItem by ID, returning None if not found.
-        """
-        try:
-            model = PlantItemModel.objects.get(id=item_id)
-            return PlantItemMapper.to_domain(model)
-        except PlantItemModel.DoesNotExist:
-            return None
-
-    def list(self, page: int, page_size: int, filters: Dict) -> Tuple[List[PlantItem], int]:
-        """
-        Lists items filtering via Django QuerySets and slicing for pagination.
-        """
-        queryset = PlantItemModel.objects.all()
-
+    def _apply_filters(self, queryset: models.QuerySet, filters: dict) -> models.QuerySet:
         if filters.get("min_price") is not None:
             queryset = queryset.filter(price__gte=filters["min_price"])
         if filters.get("max_price") is not None:
@@ -51,18 +39,8 @@ class DjangoPlantItemRepository(PlantItemRepository):
             queryset = queryset.filter(is_available=filters["is_available"])
         if filters.get("name_contains") is not None:
             queryset = queryset.filter(name__icontains=filters["name_contains"])
-
-        total_count = queryset.count()
-
-        start = (page - 1) * page_size
-        end = start + page_size
-
-        items = [PlantItemMapper.to_domain(model) for model in queryset[start:end]]
-        return items, total_count
-
-    def delete(self, item_id: UUID) -> None:
-        PlantItemModel.objects.filter(id=item_id).delete()
+        return queryset
 
     def exists(self, item_id: UUID) -> bool:
         """Checks existence efficiently."""
-        return PlantItemModel.objects.filter(id=item_id).exists()
+        return self.model_class.objects.filter(id=item_id).exists()

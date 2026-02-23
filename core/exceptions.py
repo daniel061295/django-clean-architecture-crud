@@ -3,6 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from store.plant_item.domain.exceptions import DomainError, PlantItemNotFoundError
 
+class DynamoDBClientError(Exception):
+    """
+    Exception raised for basic errors during interactions with DynamoDB.
+    """
+    pass
 
 def drf_exception_handler(exc, context):
     """

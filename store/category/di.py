@@ -1,6 +1,6 @@
 from injector import Module, provider, singleton
 from store.category.domain.repositories import CategoryRepository
-from store.category.infrastructure.repositories import DjangoCategoryRepository
+from store.category.infrastructure.repositories import DjangoCategoryRepository, DynamoDBCategoryRepository
 from store.category.application.use_cases.create_category import CreateCategory
 from store.category.application.use_cases.list_categories import ListCategories
 from store.category.application.use_cases.get_category import GetCategory
@@ -11,7 +11,7 @@ class CategoryModule(Module):
     @provider
     @singleton
     def provide_repository(self) -> CategoryRepository:
-        return DjangoCategoryRepository()
+        return DynamoDBCategoryRepository()
 
     @provider
     def provide_create_category(self, repository: CategoryRepository) -> CreateCategory:

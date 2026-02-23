@@ -2,7 +2,7 @@ from injector import Module, provider, singleton
 from store.plant_health.domain.interfaces import PlantHealthService
 from store.plant_health.infrastructure.ai.services import GeminiPlantHealthService
 from store.plant_health.application.use_cases import AnalyzePlantHealth
-import os
+from django.conf import settings
 
 class PlantHealthModule(Module):
     """
@@ -15,7 +15,7 @@ class PlantHealthModule(Module):
         """
         Provides the PlantHealthService implementation.
         """
-        api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
         return GeminiPlantHealthService(api_key=api_key)
 
     @provider

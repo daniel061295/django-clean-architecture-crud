@@ -1,99 +1,82 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Type
 from uuid import UUID
-from django.core.paginator import Paginator
+from datetime import datetime
+from django.db import models
 from store.category.domain.entities import Category
 from store.category.domain.repositories import CategoryRepository
 from store.category.infrastructure.models import CategoryModel
 from store.category.infrastructure.mappers import CategoryMapper
+from core.infrastructure.django.repositories import DjangoBaseRepository
+from core.infrastructure.dynamodb.repositories import DynamoDBBaseRepository
 
-class DjangoCategoryRepository(CategoryRepository):
+class DjangoCategoryRepository(DjangoBaseRepository[Category, CategoryModel], CategoryRepository):
     """
     Django implementation of the CategoryRepository interface.
     """
 
-    def save(self, category: Category) -> Category:
-        """
-        Saves a Category domain entity to the database.
+    @property
+    def model_class(self) -> Type[CategoryModel]:
+        return CategoryModel
 
-        Args:
-            category: Category domain entity to save.
+    def _to_db_defaults(self, entity: Category) -> dict:
+        return {
+            "name": entity.name,
+            "description": entity.description,
+            "active": entity.active,
+            "updated_at": entity.updated_at,
+            "created_at": entity.created_at
+        }
 
-        Returns:
-            Category domain entity.
-        """
-        model, created = CategoryModel.objects.update_or_create(
-            id=category.id,
-            defaults={
-                "name": category.name,
-                "description": category.description,
-                "active": category.active,
-                "updated_at": category.updated_at,
-                "created_at": category.created_at # Ensure created_at is preserved/set
-            }
-        )
-        return CategoryMapper.to_domain(model)
+    def _to_domain_entity(self, model_instance: CategoryModel) -> Category:
+        return CategoryMapper.to_domain(model_instance)
 
-    def get_by_id(self, category_id: UUID) -> Optional[Category]:
-        """
-        Retrieves a Category domain entity by its ID.
-
-        Args:
-            category_id: UUID of the category to retrieve.
-
-        Returns:
-            Category domain entity or None if not found.
-        """
-        try:
-            model = CategoryModel.objects.get(id=category_id)
-            return CategoryMapper.to_domain(model)
-        except CategoryModel.DoesNotExist:
-            return None
-
-    def list(self, page: int, page_size: int, filters: dict) -> Tuple[List[Category], int]:
-        """
-        Lists Category domain entities with pagination and filters.
-
-        Args:
-            page: Page number.
-            page_size: Number of categories per page.
-            filters: Dictionary of filters to apply.
-
-        Returns:
-            Tuple of list of Category domain entities and total count.
-        """
-        queryset = CategoryModel.objects.all().order_by("-created_at")
-
+    def _apply_filters(self, queryset: models.QuerySet, filters: dict) -> models.QuerySet:
+        queryset = queryset.order_by("-created_at")
         if filters.get("name"):
-             queryset = queryset.filter(name__icontains=filters["name"])
-        
+            queryset = queryset.filter(name__icontains=filters["name"])
         if filters.get("active") is not None:
             queryset = queryset.filter(active=filters["active"])
-
-        paginator = Paginator(queryset, page_size)
-        page_obj = paginator.get_page(page)
-        
-        return [CategoryMapper.to_domain(item) for item in page_obj], paginator.count
-
-    def delete(self, category_id: UUID) -> None:
-        """
-        Deletes a Category domain entity by its ID.
-
-        Args:
-            category_id: UUID of the category to delete.
-
-        Returns:
-            None
-        """
-        CategoryModel.objects.filter(id=category_id).delete()
+        return queryset
         
     def exists_by_name(self, name: str) -> bool:
         """
         Checks if a Category domain entity with the given name exists.
-
-        Args:
-            name: Name of the category to check.
-
-        Returns:
-            True if category exists, False otherwise.
         """
-        return CategoryModel.objects.filter(name=name).exists()
+        return self.model_class.objects.filter(name=name).exists()
+
+class DynamoDBCategoryRepository(DynamoDBBaseRepository[Category], CategoryRepository):
+    """
+    DynamoDB implementation of the CategoryRepository interface.
+    """
+    def __init__(self):
+        super().__init__(
+            table_name="categories",
+            pk_name="id",
+            sk_name=None
+        )
+
+    def _to_db_dict(self, entity: Category) -> dict:
+        return {
+            "id": str(entity.id),
+            "name": entity.name,
+            "description": entity.description,
+            "active": entity.active,
+            "updated_at": entity.updated_at.isoformat() if entity.updated_at else None,
+            "created_at": entity.created_at.isoformat() if entity.created_at else None
+        }
+
+    def _to_domain_entity(self, item_dict: dict) -> Category:
+        return Category(
+            id=UUID(item_dict["id"]),
+            name=item_dict["name"],
+            description=item_dict.get("description"),
+            active=item_dict.get("active", True),
+            created_at=datetime.fromisoformat(item_dict["created_at"]) if item_dict.get("created_at") else None,
+            updated_at=datetime.fromisoformat(item_dict["updated_at"]) if item_dict.get("updated_at") else None
+        )
+    
+    def exists_by_name(self, name: str) -> bool:
+        """
+        Checks if a Category domain entity with the given name exists.
+        """
+        return self._exists_by_attribute('name', name)

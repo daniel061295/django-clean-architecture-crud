@@ -11,20 +11,29 @@ It demonstrates how to decouple the business logic from the framework (`Django`)
   - `Application`: Use Cases and DTOs.
   - `Infrastructure`: Data persistence (Django ORM), Mappers, and Repository implementations.
   - `Interface Adapters`: DRF Views, Serializers, and URLs.
-- **Modular Design**: The project is organized by business domains (Category, PlantItem, Provider, Inventory, Sale).
+- **Modular Design**: The project is organized by business domains (Category, PlantItem, Provider, Inventory, Sale, Tips, History, Plant Health).
 - **Dependency Injection**: Decoupled components using `injector` and `django-injector`, with modular DI configuration.
 - **Complete CRUD Operations**:
   - Full CRUD for Categories, Plant Items, and Providers.
   - Inventory Movements and Sales management.
+- **Dynamic Tips**:
+  - Managed plant care tips with a **Random Tip** endpoint.
+  - Backend-side state tracking using **Django Cache** to ensure non-consecutive results.
+- **AI-Powered Plant Diagnostics**:
+  - Plant health analysis integrated with **Google Gemini AI**.
+  - Advanced diagnostic logic and history tracking for user interactions.
+- **Plant Store History**:
+  - Comprehensive audit trail and scan history tracking.
 - **RESTful API**: Structured endpoints for all entities.
 - **API Documentation**: Automated Swagger/OpenAPI documentation via `drf-spectacular`.
 - **Advanced Testing**: Comprehensive test suite using `pytest`.
 
 ## 🛠️ Tech Stack
 
-- **Python**: 3.14+
+- **Python**: 3.14.2
 - **Django**: 6.0.x
 - **Django Rest Framework**: 3.15+
+- **Google Gemini AI**: For plant health diagnostics.
 - **Injector**: Dependency injection library.
 - **django-injector**: Django integration for injector.
 - **drf-spectacular**: OpenAPI Schema generation.
@@ -41,6 +50,10 @@ store/
 ├── provider/            # Provider domain logic & DI
 ├── inventory_movement/  # Inventory management logic & DI
 ├── sale/                # Sales management logic & DI
+├── tips/                # Plant care tips & Random Tip logic
+├── history/             # User scan history & audit trails
+├── plant_health/        # Plant diagnostic analysis logic
+├── management/          # Custom Django-admin commands (Seeding, etc.)
 ├── di.py                # Main Dependency Injection aggregator
 ├── models.py            # Shared Django persistence models
 └── urls.py              # Application-wide routing
@@ -77,7 +90,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Run Migrations
+### 4. Environment Configuration
+Create a `.env` file in the root directory and add the following:
+```env
+DEBUG=True
+SECRET_KEY=your-secret-key
+ALLOWED_HOSTS=localhost,127.0.0.1
+GEMINI_API_KEY=your-google-gemini-api-key
+```
+
+### 5. Run Migrations
 ```bash
 python manage.py migrate
 ```
@@ -85,6 +107,12 @@ python manage.py migrate
 ### 5. Run Server
 ```bash
 python manage.py runserver
+```
+
+### 6. Seed Initial Data (Optional)
+To populate the database with gardening tips:
+```bash
+python manage.py seed_tips
 ```
 
 ## 📖 API Documentation

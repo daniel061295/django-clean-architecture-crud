@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated
 from injector import inject
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
@@ -12,8 +13,12 @@ from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlan
 class PlantHealthView(viewsets.ViewSet):
     """
     ViewSet for Plant Health Analysis.
+
+    Requires authentication (JWT). The user must have a valid subscription
+    and the 'scan_plant' permission to perform an analysis.
     """
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = (IsAuthenticated,)
 
     @inject
     def __init__(self, analyze_use_case: AnalyzePlantHealth = None, **kwargs):
@@ -47,7 +52,7 @@ class PlantHealthView(viewsets.ViewSet):
         photo_file = serializer.validated_data['photo']
         
         # Convert uploaded file to BinaryIO (it is already file-like)
-        input_dto = AnalyzePlantHealthInputDTO(photo=photo_file)
+        input_dto = AnalyzePlantHealthInputDTO(photo=photo_file, user_id=request.user.id)
 
         try:
             result = self.analyze_use_case.execute(input_dto)

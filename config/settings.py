@@ -48,10 +48,15 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
     "rest_framework",
+    "rest_framework_simplejwt",
     "store",
+    "identity",
+    "billing",
     "drf_spectacular",
     "django_injector",
 ]
+# Custom User Model
+AUTH_USER_MODEL = "identity.CustomUserModel"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -133,6 +138,12 @@ STATIC_URL = "static/"
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.drf_exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
 SPECTACULAR_SETTINGS = {
@@ -142,6 +153,17 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
 INJECTOR_MODULES = [
     "store.di.StoreModule",
+    "identity.di.IdentityModule",
+    "billing.di.BillingModule",
 ]

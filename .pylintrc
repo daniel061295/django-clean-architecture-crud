@@ -1,4 +1,17 @@
 [MASTER]
 load-plugins=pylint_django
 django-settings-module=config.settings
-max-line-length=100
+
+[MESSAGES CONTROL]
+# Desactivar avisos que suelen dar falsos positivos en Clean Architecture
+disable=
+    import-error,
+    no-name-in-module,
+    unused-argument,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+
+[TYPECHECK]
+# Permite que Pylint entienda los objetos inyectados por el decorador @inject
+ignored-modules=injector

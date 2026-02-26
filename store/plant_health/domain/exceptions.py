@@ -5,3 +5,7 @@ class PlantHealthAnalysisError(Exception):
 class LowConfidenceError(PlantHealthAnalysisError):
     """Raised when the analysis confidence is too low after retries."""
     pass
+
+class InvalidPlantImageError(PlantHealthAnalysisError):
+    """Raised when the provided image does not contain a clear or recognizable plant."""
+    pass

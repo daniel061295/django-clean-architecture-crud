@@ -7,6 +7,7 @@ class PlantHealthReport:
     Domain Entity representing the health diagnosis of a plant.
     """
     is_healthy: bool
+    title: str
     diagnosis: str
     confidence: float
     treatment: List[str]

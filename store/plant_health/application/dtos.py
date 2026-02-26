@@ -15,7 +15,10 @@ class PlantHealthAnalysisResponseDTO:
     Data Transfer Object for the output of the AnalyzePlantHealth use case.
     """
     is_healthy: bool
+    title: str
     diagnosis: str
     confidence: float
     treatment: List[str]
     urgency_level: str
+    photo: str
+

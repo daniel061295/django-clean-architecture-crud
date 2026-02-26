@@ -17,4 +17,6 @@ router.register(r"plant-health", PlantHealthView, basename="plant-health")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("history/", include("store.history.urls")),
+    path("tips/", include("store.tips.urls")),
 ]

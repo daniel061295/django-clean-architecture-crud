@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from store.plant_health.application.use_cases import AnalyzePlantHealth
 from store.plant_health.application.dtos import AnalyzePlantHealthInputDTO
 from store.plant_health.interfaces.serializers import AnalyzePlantHealthInputSerializer, PlantHealthAnalysisResponseSerializer
-from store.plant_health.domain.exceptions import LowConfidenceError
+from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError
 
 class PlantHealthView(viewsets.ViewSet):
     """
@@ -58,6 +58,18 @@ class PlantHealthView(viewsets.ViewSet):
         except LowConfidenceError as e:
              return Response(
                 {"error": str(e), "code": "LOW_CONFIDENCE"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        except InvalidPlantImageError as e:
+            return Response(
+                {
+                    "is_healthy": False,
+                    "title": "Imagen no procesable",
+                    "diagnosis": str(e),
+                    "confidence": 0.0,
+                    "treatment": [],
+                    "urgency_level": "Low"
+                },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
         except Exception as e:

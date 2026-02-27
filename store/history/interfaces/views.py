@@ -67,6 +67,7 @@ class HistoryDetailView(APIView):
     """
 
     @extend_schema(
+        operation_id="history_detail_retrieve",
         responses={
             200: OpenApiResponse(description="A single history record"),
             404: OpenApiResponse(description="History not found"),
@@ -84,6 +85,7 @@ class HistoryDetailView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
     @extend_schema(
+        operation_id="history_detail_destroy",
         responses={
             204: OpenApiResponse(description="History deleted successfully"),
             404: OpenApiResponse(description="History not found"),

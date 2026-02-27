@@ -2,7 +2,8 @@ import uuid
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from injector import inject
 
 from store.tips.application.use_cases import (
@@ -14,6 +15,11 @@ from store.tips.interfaces.serializers import (
     CreateTipInputSerializer, UpdateTipInputSerializer, TipOutputSerializer
 )
 
+@extend_schema_view(
+    retrieve=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+    update=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+    destroy=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)])
+)
 class TipViewSet(viewsets.ViewSet):
     """
     ViewSet for Tip CRUD operations.

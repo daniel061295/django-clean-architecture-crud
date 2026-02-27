@@ -6,7 +6,8 @@ they delegate all logic to use cases via injected dependencies.
 """
 from uuid import UUID
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from injector import inject
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -80,6 +81,9 @@ class PermissionViewSet(viewsets.ViewSet):
         return Response(PermissionOutputSerializer(results, many=True).data)
 
 
+@extend_schema_view(
+    assign_permission=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+)
 class RoleViewSet(viewsets.ViewSet):
     """ViewSet for managing roles (admin only)."""
 
@@ -133,6 +137,11 @@ class RoleViewSet(viewsets.ViewSet):
         return Response(RoleOutputSerializer(result).data)
 
 
+@extend_schema_view(
+    retrieve=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+    assign_role=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+    remove_role=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
+)
 class UserViewSet(viewsets.ViewSet):
     """ViewSet for managing users (admin only)."""
 

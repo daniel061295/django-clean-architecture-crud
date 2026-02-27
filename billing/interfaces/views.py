@@ -107,7 +107,7 @@ class CancelSubscriptionView(APIView):
         self._cancel = cancel_subscription
         super().__init__(**kwargs)
 
-    @extend_schema(responses={204: None})
+    @extend_schema(request=None, responses={204: None})
     def post(self, request: Request) -> Response:
         """Cancels the current user's active subscription."""
         input_dto = CancelSubscriptionInputDTO(user_id=request.user.id)

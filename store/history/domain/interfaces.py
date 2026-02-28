@@ -29,6 +29,13 @@ class HistoryRepository(ABC):
         pass
 
     @abstractmethod
+    def get_by_user_id(self, user_id: str) -> List[History]:
+        """
+        Retrieves all history records for a specific user.
+        """
+        pass
+
+    @abstractmethod
     def delete(self, history_id: str) -> bool:
         """
         Deletes a history record by its ID.

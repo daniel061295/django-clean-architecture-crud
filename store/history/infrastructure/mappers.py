@@ -10,6 +10,7 @@ class HistoryMapper:
     def to_domain(model: HistoryModel) -> History:
         return History(
             id=str(model.id),
+            user_id=str(model.user_id),
             is_healthy=model.is_healthy,
             title=model.title,
             diagnosis=model.diagnosis,
@@ -24,6 +25,7 @@ class HistoryMapper:
     def to_db(entity: History) -> HistoryModel:
         return HistoryModel(
             id=entity.id,
+            user_id=entity.user_id,
             is_healthy=entity.is_healthy,
             title=entity.title,
             diagnosis=entity.diagnosis,

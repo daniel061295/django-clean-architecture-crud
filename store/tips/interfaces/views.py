@@ -20,7 +20,7 @@ from store.tips.interfaces.serializers import (
     update=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
     destroy=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)])
 )
-class TipViewSet(viewsets.ViewSet):
+class TipView(viewsets.ViewSet):
     """
     ViewSet for Tip CRUD operations.
     """

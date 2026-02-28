@@ -64,3 +64,4 @@ class DailyUsageRepository(ABC):
         Creates a fresh record with zero counts if one doesn't exist yet.
         This operation should be atomic to prevent race conditions.
         """
+

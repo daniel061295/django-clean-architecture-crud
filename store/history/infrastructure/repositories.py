@@ -24,6 +24,10 @@ class DjangoHistoryRepository(HistoryRepository):
         models = HistoryModel.objects.all().order_by('-created_at')
         return [HistoryMapper.to_domain(model) for model in models]
 
+    def get_by_user_id(self, user_id: str) -> List[History]:
+        models = HistoryModel.objects.filter(user_id=user_id).order_by('-created_at')
+        return [HistoryMapper.to_domain(model) for model in models]
+
     def delete(self, history_id: str) -> bool:
         try:
             model = HistoryModel.objects.get(id=history_id)

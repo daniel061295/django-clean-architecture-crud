@@ -121,6 +121,7 @@ class AnalyzePlantHealth:
                 treatment=report.treatment,
                 urgency_level=report.urgency_level,
                 photo=photo_base64,
+                user_id=str(input_dto.user_id),
             )
             self._create_history_use_case.execute(history_dto)
         except Exception as e:

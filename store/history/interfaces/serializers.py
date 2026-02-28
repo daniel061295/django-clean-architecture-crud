@@ -13,3 +13,4 @@ class CreateHistoryInputSerializer(serializers.Serializer):
     )
     urgency_level = serializers.CharField(max_length=50)
     photo = serializers.CharField()
+    user_id = serializers.CharField(max_length=36)

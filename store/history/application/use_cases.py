@@ -1,6 +1,6 @@
 from store.history.domain.entities import History
 from store.history.domain.interfaces import HistoryRepository
-from store.history.application.dtos import CreateHistoryInputDTO, HistoryOutputDTO, GetHistoryInputDTO
+from store.history.application.dtos import CreateHistoryInputDTO, HistoryOutputDTO, GetHistoryInputDTO, GetHistoryByUserInputDTO
 from typing import List
 from injector import inject
 
@@ -22,7 +22,8 @@ class CreateHistoryUseCase:
             confidence=input_dto.confidence,
             treatment=input_dto.treatment,
             urgency_level=input_dto.urgency_level,
-            photo=input_dto.photo
+            photo=input_dto.photo,
+            user_id=input_dto.user_id
         )
         
         # 2. Persist
@@ -38,6 +39,7 @@ class CreateHistoryUseCase:
             treatment=saved_history.treatment,
             urgency_level=saved_history.urgency_level,
             photo=saved_history.photo,
+            user_id=saved_history.user_id,
             created_at=str(saved_history.created_at)
         )
 
@@ -64,6 +66,7 @@ class GetHistoryUseCase:
             treatment=history.treatment,
             urgency_level=history.urgency_level,
             photo=history.photo,
+            user_id=history.user_id,
             created_at=str(history.created_at)
         )
 
@@ -88,6 +91,33 @@ class GetAllHistoryUseCase:
                 treatment=h.treatment,
                 urgency_level=h.urgency_level,
                 photo=h.photo,
+                user_id=h.user_id,
+                created_at=str(h.created_at)
+            ) for h in histories
+        ]
+
+class GetHistoryByUserUseCase:
+    """
+    Use case for retrieving all history records for a specific user.
+    """
+
+    @inject
+    def __init__(self, repository: HistoryRepository):
+        self._repository = repository
+
+    def execute(self, input_dto: GetHistoryByUserInputDTO) -> List[HistoryOutputDTO]:
+        histories = self._repository.get_by_user_id(input_dto.user_id)
+        return [
+            HistoryOutputDTO(
+                id=str(h.id),
+                is_healthy=h.is_healthy,
+                title=h.title,
+                diagnosis=h.diagnosis,
+                confidence=h.confidence,
+                treatment=h.treatment,
+                urgency_level=h.urgency_level,
+                photo=h.photo,
+                user_id=h.user_id,
                 created_at=str(h.created_at)
             ) for h in histories
         ]

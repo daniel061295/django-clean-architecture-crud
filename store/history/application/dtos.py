@@ -11,6 +11,7 @@ class CreateHistoryInputDTO:
     treatment: List[str]
     urgency_level: str
     photo: str
+    user_id: str
 
 @dataclass
 class HistoryOutputDTO:
@@ -23,9 +24,15 @@ class HistoryOutputDTO:
     treatment: List[str]
     urgency_level: str
     photo: str
+    user_id: str
     created_at: str
 
 @dataclass
 class GetHistoryInputDTO:
     """DTO for requesting a history record."""
     id: str
+
+@dataclass
+class GetHistoryByUserInputDTO:
+    """DTO for requesting history records by user."""
+    user_id: str

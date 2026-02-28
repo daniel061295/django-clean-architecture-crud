@@ -6,6 +6,8 @@ from store.provider.interfaces.views import ProviderView
 from store.inventory_movement.interfaces.views import InventoryMovementView
 from store.sale.interfaces.views import SaleView
 from store.plant_health.interfaces.views import PlantHealthView
+from store.history.interfaces.views import HistoryView
+from store.tips.interfaces.views import TipView
 
 router = DefaultRouter()
 router.register(r"plant-items", PlantItemView, basename="plant-items")
@@ -14,9 +16,9 @@ router.register(r"providers", ProviderView, basename="providers")
 router.register(r"inventory-movements", InventoryMovementView, basename="inventory-movements")
 router.register(r"sales", SaleView, basename="sales")
 router.register(r"plant-health", PlantHealthView, basename="plant-health")
+router.register(r"history", HistoryView, basename="history")
+router.register(r"tips", TipView, basename="tips")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("history/", include("store.history.urls")),
-    path("tips/", include("store.tips.urls")),
 ]

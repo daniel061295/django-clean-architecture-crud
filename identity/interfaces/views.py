@@ -1,35 +1,40 @@
 """
 Identity Interface Views — DRF ViewSets for RBAC management.
 
-All endpoints are protected by IsAdminUser. Views are dumb:
-they delegate all logic to use cases via injected dependencies.
+All endpoints require HasPermission('manage_users') for admin operations.
+Views are dumb: they delegate all logic to use cases via injected dependencies.
 """
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from injector import inject
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from core.permissions import HasPermission
 from identity.application.dtos import (
     AssignPermissionToRoleInputDTO,
     AssignRoleToUserInputDTO,
     CreatePermissionInputDTO,
     CreateRoleInputDTO,
     CreateUserInputDTO,
+    GetUserPermissionsInputDTO,
     RemoveRoleFromUserInputDTO,
 )
 from identity.application.use_cases import (
     AssignPermissionToRole,
     AssignRoleToUser,
+    CheckUserPermission,
     CreatePermission,
     CreateRole,
     CreateUser,
     GetUser,
+    GetUserPermissions,
     ListPermissions,
     ListRoles,
     ListUsers,
@@ -47,10 +52,28 @@ from identity.interfaces.serializers import (
 )
 
 
-class PermissionViewSet(viewsets.ViewSet):
-    """ViewSet for managing system permissions (admin only)."""
+class UserPermissionsOutputSerializer(serializers.Serializer):
+    """Serializer for user permissions output."""
 
-    permission_classes = [IsAdminUser]
+    permissions = serializers.ListField(child=serializers.CharField())
+
+    def to_representation(self, instance):
+        """Convert DTO to representation."""
+        if hasattr(instance, "permissions"):
+            data = {"permissions": instance.permissions}
+        else:
+            data = instance
+        return super().to_representation(data)
+
+
+class PermissionViewSet(viewsets.ViewSet):
+    """ViewSet for managing system permissions (requires manage_users permission)."""
+
+    permission_classes = [HasPermission]
+
+    def get_permission_code(self) -> str:
+        """Returns the required permission code for this endpoint."""
+        return "manage_users"
 
     @inject
     def __init__(
@@ -85,9 +108,13 @@ class PermissionViewSet(viewsets.ViewSet):
     assign_permission=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
 )
 class RoleViewSet(viewsets.ViewSet):
-    """ViewSet for managing roles (admin only)."""
+    """ViewSet for managing roles (requires manage_users permission)."""
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [HasPermission]
+
+    def get_permission_code(self) -> str:
+        """Returns the required permission code for this endpoint."""
+        return "manage_users"
 
     @inject
     def __init__(
@@ -143,9 +170,13 @@ class RoleViewSet(viewsets.ViewSet):
     remove_role=extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)]),
 )
 class UserViewSet(viewsets.ViewSet):
-    """ViewSet for managing users (admin only)."""
+    """ViewSet for managing users (requires manage_users permission)."""
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [HasPermission]
+
+    def get_permission_code(self) -> str:
+        """Returns the required permission code for this endpoint."""
+        return "manage_users"
 
     @inject
     def __init__(
@@ -219,3 +250,25 @@ class UserViewSet(viewsets.ViewSet):
         )
         result = self._remove_role.execute(input_dto)
         return Response(UserOutputSerializer(result).data)
+
+
+class MyPermissionsView(APIView):
+    """GET /identity/me/permissions — Returns current user's permissions."""
+
+    permission_classes = [IsAuthenticated]
+
+    @inject
+    def __init__(
+        self,
+        get_user_permissions: GetUserPermissions = None,
+        **kwargs,
+    ) -> None:
+        self._get_user_permissions = get_user_permissions
+        super().__init__(**kwargs)
+
+    @extend_schema(responses={200: UserPermissionsOutputSerializer})
+    def get(self, request: Request) -> Response:
+        """Returns all permission codes granted to the current user."""
+        input_dto = GetUserPermissionsInputDTO(user_id=request.user.id)
+        result = self._get_user_permissions.execute(input_dto)
+        return Response(UserPermissionsOutputSerializer(result).data)

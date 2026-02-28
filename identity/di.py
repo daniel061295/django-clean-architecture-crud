@@ -8,10 +8,12 @@ from injector import Binder, Module, provider, singleton
 from identity.application.use_cases import (
     AssignPermissionToRole,
     AssignRoleToUser,
+    CheckUserPermission,
     CreatePermission,
     CreateRole,
     CreateUser,
     GetUser,
+    GetUserPermissions,
     ListPermissions,
     ListRoles,
     ListUsers,
@@ -34,3 +36,15 @@ class IdentityModule(Module):
         binder.bind(PermissionRepository, to=DjangoPermissionRepository)
         binder.bind(RoleRepository, to=DjangoRoleRepository)
         binder.bind(UserRepository, to=DjangoUserRepository)
+
+    @provider
+    @singleton
+    def provide_check_user_permission(self, repository: UserRepository) -> CheckUserPermission:
+        """Provides CheckUserPermission use case."""
+        return CheckUserPermission(repository)
+
+    @provider
+    @singleton
+    def provide_get_user_permissions(self, repository: UserRepository) -> GetUserPermissions:
+        """Provides GetUserPermissions use case."""
+        return GetUserPermissions(repository)

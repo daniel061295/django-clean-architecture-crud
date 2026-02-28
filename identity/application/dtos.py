@@ -79,3 +79,30 @@ class UserOutputDTO:
     username: str
     is_active: bool
     roles: List[RoleOutputDTO] = field(default_factory=list)
+
+
+# --- Permission Check DTOs ---
+
+@dataclass
+class GetUserPermissionsInputDTO:
+    """Input DTO for the GetUserPermissions use case."""
+    user_id: UUID
+
+
+@dataclass
+class GetUserPermissionsOutputDTO:
+    """Output DTO representing all permissions granted to a user."""
+    permissions: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CheckUserPermissionInputDTO:
+    """Input DTO for the CheckUserPermission use case."""
+    user_id: UUID
+    permission_code: str
+
+
+@dataclass
+class CheckUserPermissionOutputDTO:
+    """Output DTO indicating whether a user has a specific permission."""
+    has_permission: bool

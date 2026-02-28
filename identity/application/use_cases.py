@@ -11,9 +11,13 @@ from injector import inject
 from identity.application.dtos import (
     AssignPermissionToRoleInputDTO,
     AssignRoleToUserInputDTO,
+    CheckUserPermissionInputDTO,
+    CheckUserPermissionOutputDTO,
     CreatePermissionInputDTO,
     CreateRoleInputDTO,
     CreateUserInputDTO,
+    GetUserPermissionsInputDTO,
+    GetUserPermissionsOutputDTO,
     PermissionOutputDTO,
     RemoveRoleFromUserInputDTO,
     RoleOutputDTO,
@@ -335,3 +339,57 @@ class RemoveRoleFromUser:
 
         updated = self._repository.remove_role(input_dto.user_id, input_dto.role_id)
         return _user_to_dto(updated)
+
+
+# ---------------------------------------------------------------------------
+# Permission Check Use Cases
+# ---------------------------------------------------------------------------
+
+class GetUserPermissions:
+    """Returns all permission codes granted to a user through their roles."""
+
+    @inject
+    def __init__(self, repository: UserRepository) -> None:
+        self._repository = repository
+
+    def execute(self, input_dto: GetUserPermissionsInputDTO) -> GetUserPermissionsOutputDTO:
+        """
+        Returns all permission codes for a user.
+
+        Args:
+            input_dto: User UUID.
+
+        Returns:
+            GetUserPermissionsOutputDTO: List of permission codes.
+        """
+        user = self._repository.get_by_id(input_dto.user_id)
+        if user is None:
+            return GetUserPermissionsOutputDTO(permissions=[])
+
+        permission_codes = list({p.code for role in user.roles for p in role.permissions})
+        return GetUserPermissionsOutputDTO(permissions=permission_codes)
+
+
+class CheckUserPermission:
+    """Checks if a user has a specific permission through any of their roles."""
+
+    @inject
+    def __init__(self, repository: UserRepository) -> None:
+        self._repository = repository
+
+    def execute(self, input_dto: CheckUserPermissionInputDTO) -> CheckUserPermissionOutputDTO:
+        """
+        Checks if a user has a specific permission.
+
+        Args:
+            input_dto: User UUID and permission code.
+
+        Returns:
+            CheckUserPermissionOutputDTO: Whether the user has the permission.
+        """
+        user = self._repository.get_by_id(input_dto.user_id)
+        if user is None:
+            return CheckUserPermissionOutputDTO(has_permission=False)
+
+        has_permission = user.has_permission(input_dto.permission_code)
+        return CheckUserPermissionOutputDTO(has_permission=has_permission)

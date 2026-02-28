@@ -65,3 +65,9 @@ class DailyUsageRepository(ABC):
         This operation should be atomic to prevent race conditions.
         """
 
+    @abstractmethod
+    def get_today_usage(self, user_id: UUID) -> Optional[DailyUsage]:
+        """
+        Returns today's DailyUsage record for a user, or None if not found.
+        """
+

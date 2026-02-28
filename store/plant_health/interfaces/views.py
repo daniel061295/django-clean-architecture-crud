@@ -1,24 +1,29 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated
 from injector import inject
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
+from core.permissions import HasSubscriptionScanPermission
 from store.plant_health.application.use_cases import AnalyzePlantHealth
 from store.plant_health.application.dtos import AnalyzePlantHealthInputDTO
 from store.plant_health.interfaces.serializers import AnalyzePlantHealthInputSerializer, PlantHealthAnalysisResponseSerializer
 from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError
 
+
 class PlantHealthView(viewsets.ViewSet):
     """
     ViewSet for Plant Health Analysis.
 
-    Requires authentication (JWT). The user must have a valid subscription
-    and the 'scan_plant' permission to perform an analysis.
+    Requires HasSubscriptionScanPermission which verifies:
+    - User is authenticated
+    - User has 'scan_plant' permission
+    - User has active subscription
+    - User has not exceeded daily scan limit
     """
+
     parser_classes = (MultiPartParser, FormParser)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (HasSubscriptionScanPermission,)
 
     @inject
     def __init__(self, analyze_use_case: AnalyzePlantHealth = None, **kwargs):

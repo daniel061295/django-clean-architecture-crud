@@ -122,3 +122,12 @@ class DjangoDailyUsageRepository(DailyUsageRepository):
             defaults={"scans_count": 0, "ads_watched": 0},
         )
         return DailyUsageMapper.to_domain(model)
+
+    def get_today_usage(self, user_id: UUID) -> Optional[DailyUsage]:
+        """Returns today's DailyUsage for a user, or None if not found."""
+        today = date.today()
+        try:
+            model = DailyUsageModel.objects.get(user_id=user_id, date=today)
+            return DailyUsageMapper.to_domain(model)
+        except DailyUsageModel.DoesNotExist:
+            return None

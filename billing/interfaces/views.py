@@ -1,8 +1,7 @@
 """
 Billing Interface Views — DRF Views for billing REST endpoints.
 
-Public endpoints require authentication (IsAuthenticated).
-Admin endpoints additionally require IsAdminUser.
+Public endpoints require HasPermission('manage_subscriptions') for admin operations.
 Views are dumb — all logic delegated to use cases.
 """
 from uuid import UUID
@@ -10,7 +9,7 @@ from uuid import UUID
 from drf_spectacular.utils import extend_schema
 from injector import inject
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,6 +33,7 @@ from billing.interfaces.serializers import (
     PlanOutputSerializer,
     SubscriptionOutputSerializer,
 )
+from core.permissions import HasPermission
 
 
 class PlansListView(APIView):
@@ -120,9 +120,13 @@ class CancelSubscriptionView(APIView):
 # ---------------------------------------------------------------------------
 
 class AdminCreatePlanView(APIView):
-    """POST /billing/admin/plans — Creates a new plan (admin only)."""
+    """POST /billing/admin/plans — Creates a new plan (requires manage_subscriptions permission)."""
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [HasPermission]
+
+    def get_permission_code(self) -> str:
+        """Returns the required permission code for this endpoint."""
+        return "manage_subscriptions"
 
     @inject
     def __init__(self, create_plan: CreatePlan = None, **kwargs) -> None:

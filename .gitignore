@@ -22,3 +22,5 @@ env
 
 # Project specific
 .gemini
+.qwen
+

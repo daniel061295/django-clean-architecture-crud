@@ -151,6 +151,9 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API for managing plant items in the store.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+    },
 }
 
 from datetime import timedelta

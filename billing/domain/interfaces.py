@@ -2,7 +2,7 @@
 Billing Domain Repository Interfaces (Ports) — Pure Python ABCs.
 """
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -47,6 +47,16 @@ class SubscriptionRepository(ABC):
     @abstractmethod
     def cancel_active_by_user(self, user_id: UUID) -> None:
         """Sets all active/trialing subscriptions for a user to CANCELED."""
+
+    @abstractmethod
+    def create(
+        self,
+        user_id: UUID,
+        plan_id: UUID,
+        start_date: datetime,
+        end_date: Optional[datetime] = None,
+    ) -> Subscription:
+        """Creates a new subscription for a user."""
 
 
 class DailyUsageRepository(ABC):

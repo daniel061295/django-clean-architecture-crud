@@ -19,6 +19,7 @@ class Command(BaseCommand):
         {"code": "manage_subscriptions", "description": "Can manage user subscriptions"},
         {"code": "manage_users", "description": "Can manage users"},
         {"code": "admin_access", "description": "Full system access"},
+        {"code": "view_all_history", "description": "Can view all user history records"},
     ]
 
     # Role definitions with their permissions
@@ -29,6 +30,7 @@ class Command(BaseCommand):
             "manage_subscriptions",
             "manage_users",
             "admin_access",
+            "view_all_history",
         ],
         "subscriber": ["scan_plant", "bypass_ads"],
         "free_user": ["scan_plant", "view_ads"],

@@ -3,16 +3,23 @@ Billing Application Use Cases — Business orchestration for SaaS billing.
 
 Each class handles a single, specific business action following the Command Pattern.
 """
-from datetime import date
-from typing import List
+from datetime import date, datetime, timedelta
+from typing import List, Optional
 from uuid import UUID
 
 from injector import inject
 
 from billing.application.dtos import (
-    ChangePlanInputDTO,
+    AuthorizePlantScanOutputDTO,
     CancelSubscriptionInputDTO,
+    ChangePlanInputDTO,
+    CheckDailyScanLimitInputDTO,
+    CheckDailyScanLimitOutputDTO,
+    CheckSubscriptionStatusInputDTO,
+    CheckSubscriptionStatusOutputDTO,
+    CreateFreeSubscriptionForUserInputDTO,
     CreatePlanInputDTO,
+    CreateSubscriptionInputDTO,
     MySubscriptionOutputDTO,
     PlanOutputDTO,
     SubscriptionOutputDTO,
@@ -22,6 +29,7 @@ from billing.domain.exceptions import (
     NoActiveSubscriptionError,
     PlanAlreadyExistsError,
     PlanNotFoundError,
+    SubscriptionAlreadyExistsError,
 )
 from billing.domain.interfaces import DailyUsageRepository, PlanRepository, SubscriptionRepository
 from billing.domain.value_objects import SubscriptionStatus
@@ -231,3 +239,309 @@ class CancelSubscription:
             raise NoActiveSubscriptionError("No active subscription found to cancel.")
 
         self._sub_repo.cancel_active_by_user(input_dto.user_id)
+
+
+# ---------------------------------------------------------------------------
+# Authorization Use Cases
+# ---------------------------------------------------------------------------
+
+class CheckSubscriptionStatus:
+    """
+    Checks if a user has an active subscription.
+    
+    This use case verifies subscription status without exposing full subscription details.
+    """
+
+    @inject
+    def __init__(
+        self,
+        subscription_repository: SubscriptionRepository,
+        plan_repository: PlanRepository,
+    ) -> None:
+        self._sub_repo = subscription_repository
+        self._plan_repo = plan_repository
+
+    def execute(self, input_dto: CheckSubscriptionStatusInputDTO) -> CheckSubscriptionStatusOutputDTO:
+        """
+        Checks if a user has an active subscription.
+
+        Args:
+            input_dto: User UUID.
+
+        Returns:
+            CheckSubscriptionStatusOutputDTO: Subscription status information.
+        """
+        subscription = self._sub_repo.get_active_by_user(input_dto.user_id)
+        
+        if subscription is None or subscription.status != SubscriptionStatus.ACTIVE:
+            return CheckSubscriptionStatusOutputDTO(
+                has_active_subscription=False,
+            )
+
+        plan = self._plan_repo.get_by_id(subscription.plan_id)
+        
+        return CheckSubscriptionStatusOutputDTO(
+            has_active_subscription=True,
+            plan_id=str(subscription.plan_id),
+            plan_name=plan.name if plan else None,
+            status=subscription.status.value,
+        )
+
+
+class CheckDailyScanLimit:
+    """
+    Checks if a user has exceeded their daily scan limit.
+    
+    This use case verifies the user's scan usage against their plan's limits.
+    """
+
+    @inject
+    def __init__(
+        self,
+        daily_usage_repository: DailyUsageRepository,
+        plan_repository: PlanRepository,
+    ) -> None:
+        self._usage_repo = daily_usage_repository
+        self._plan_repo = plan_repository
+
+    def execute(self, input_dto: CheckDailyScanLimitInputDTO) -> CheckDailyScanLimitOutputDTO:
+        """
+        Checks if a user can perform another scan today.
+
+        Args:
+            input_dto: User UUID and plan ID.
+
+        Returns:
+            CheckDailyScanLimitOutputDTO: Whether the user can scan and usage info.
+        """
+        usage = self._usage_repo.get_today_usage(input_dto.user_id)
+        scans_today = usage.scans_count if usage else 0
+
+        plan = self._plan_repo.get_by_id(input_dto.plan_id)
+        scan_limit = plan.scan_limit_per_day if plan else None
+
+        # If no limit is set, user can scan
+        if scan_limit is None:
+            return CheckDailyScanLimitOutputDTO(
+                can_scan=True,
+                scans_today=scans_today,
+                scan_limit=None,
+            )
+
+        return CheckDailyScanLimitOutputDTO(
+            can_scan=scans_today < scan_limit,
+            scans_today=scans_today,
+            scan_limit=scan_limit,
+        )
+
+
+class AuthorizePlantScan:
+    """
+    Authorizes a plant scan operation by checking all required conditions.
+    
+    This is a composite use case that orchestrates multiple checks:
+    1. User has an active subscription
+    2. User has not exceeded their daily scan limit
+    
+    This use case encapsulates the business rules for plant scanning authorization.
+    """
+
+    @inject
+    def __init__(
+        self,
+        subscription_repository: SubscriptionRepository,
+        plan_repository: PlanRepository,
+        daily_usage_repository: DailyUsageRepository,
+    ) -> None:
+        self._sub_repo = subscription_repository
+        self._plan_repo = plan_repository
+        self._usage_repo = daily_usage_repository
+
+    def execute(self, user_id: UUID) -> AuthorizePlantScanOutputDTO:
+        """
+        Authorizes a plant scan for a user.
+
+        Args:
+            user_id: UUID of the user requesting the scan.
+
+        Returns:
+            AuthorizePlantScanOutputDTO: Authorization result with details.
+        """
+        # Check active subscription
+        subscription = self._sub_repo.get_active_by_user(user_id)
+        
+        if subscription is None or subscription.status != SubscriptionStatus.ACTIVE:
+            return AuthorizePlantScanOutputDTO(
+                authorized=False,
+                reason="no_active_subscription",
+            )
+
+        # Get plan details
+        plan = self._plan_repo.get_by_id(subscription.plan_id)
+        
+        if plan is None:
+            return AuthorizePlantScanOutputDTO(
+                authorized=False,
+                reason="plan_not_found",
+            )
+
+        # Check daily scan limit
+        usage = self._usage_repo.get_today_usage(user_id)
+        scans_today = usage.scans_count if usage else 0
+        scan_limit = plan.scan_limit_per_day
+
+        # If no limit is set, authorize
+        if scan_limit is None:
+            return AuthorizePlantScanOutputDTO(
+                authorized=True,
+                plan_name=plan.name,
+                scans_today=scans_today,
+                scan_limit=None,
+            )
+
+        # Check if limit exceeded
+        if scans_today >= scan_limit:
+            return AuthorizePlantScanOutputDTO(
+                authorized=False,
+                reason="scan_limit_exceeded",
+                plan_name=plan.name,
+                scans_today=scans_today,
+                scan_limit=scan_limit,
+            )
+
+        # All checks passed
+        return AuthorizePlantScanOutputDTO(
+            authorized=True,
+            plan_name=plan.name,
+            scans_today=scans_today,
+            scan_limit=scan_limit,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Create Subscription Use Cases
+# ---------------------------------------------------------------------------
+
+class CreateSubscription:
+    """
+    Creates a subscription for a user.
+    
+    This use case verifies that:
+    1. The plan exists
+    2. The user doesn't have an active subscription already
+    3. Creates and persists the subscription
+    """
+    
+    @inject
+    def __init__(
+        self,
+        subscription_repo: SubscriptionRepository,
+        plan_repo: PlanRepository,
+    ):
+        self._subscription_repo = subscription_repo
+        self._plan_repo = plan_repo
+    
+    def execute(self, input_dto: CreateSubscriptionInputDTO) -> SubscriptionOutputDTO:
+        """
+        Creates a subscription for a user.
+        
+        Args:
+            input_dto: Input data containing user_id, plan_id, and dates.
+            
+        Returns:
+            SubscriptionOutputDTO: The created subscription.
+            
+        Raises:
+            PlanNotFoundError: If the specified plan doesn't exist.
+            SubscriptionAlreadyExistsError: If user already has active subscription.
+        """
+        # 1. Verify plan exists
+        plan = self._plan_repo.get_by_id(input_dto.plan_id)
+        if plan is None:
+            raise PlanNotFoundError(f"Plan with id '{input_dto.plan_id}' not found.")
+        
+        # 2. Check user doesn't have active subscription
+        existing = self._subscription_repo.get_active_by_user(input_dto.user_id)
+        if existing is not None:
+            raise SubscriptionAlreadyExistsError(
+                f"User '{input_dto.user_id}' already has an active subscription."
+            )
+        
+        # 3. Create subscription using entity factory
+        subscription = Subscription.create(
+            user_id=input_dto.user_id,
+            plan_id=input_dto.plan_id,
+            end_date=input_dto.end_date,
+        )
+        
+        # 4. Persist
+        saved = self._subscription_repo.save(subscription)
+        return _subscription_to_dto(saved)
+
+
+class CreateFreeSubscriptionForNewUser:
+    """
+    Creates a FREE subscription automatically for newly registered users.
+    
+    This use case is designed to be called silently after user registration.
+    If the user already has a subscription, it returns successfully without error.
+    """
+    
+    FREE_PLAN_DEFAULT_DURATION_DAYS = 30
+    
+    @inject
+    def __init__(
+        self,
+        subscription_repo: SubscriptionRepository,
+        plan_repo: PlanRepository,
+    ):
+        self._subscription_repo = subscription_repo
+        self._plan_repo = plan_repo
+    
+    def execute(self, input_dto: CreateFreeSubscriptionForUserInputDTO) -> SubscriptionOutputDTO:
+        """
+        Creates a FREE subscription for a newly registered user.
+        
+        Args:
+            input_dto: Input data containing user_id.
+            
+        Returns:
+            SubscriptionOutputDTO: The created or existing subscription.
+            
+        Raises:
+            PlanNotFoundError: If the FREE plan doesn't exist.
+        """
+        # 1. Check if user already has active subscription (silent success)
+        existing = self._subscription_repo.get_active_by_user(input_dto.user_id)
+        if existing is not None:
+            return _subscription_to_dto(existing)
+        
+        # 2. Get FREE plan
+        free_plan = self._get_free_plan()
+        
+        # 3. Calculate end date (30 days from now)
+        start_date = datetime.utcnow()
+        end_date = start_date + timedelta(days=self.FREE_PLAN_DEFAULT_DURATION_DAYS)
+        
+        # 4. Create subscription
+        subscription = Subscription.create(
+            user_id=input_dto.user_id,
+            plan_id=free_plan.id,
+            end_date=end_date,
+        )
+        
+        # 5. Persist
+        saved = self._subscription_repo.save(subscription)
+        return _subscription_to_dto(saved)
+    
+    def _get_free_plan(self) -> Plan:
+        """Helper to get FREE plan by name."""
+        # Search for FREE plan by name
+        from billing.infrastructure.models import PlanModel
+        from billing.infrastructure.mappers import PlanMapper
+        
+        try:
+            model = PlanModel.objects.get(name="FREE")
+            return PlanMapper.to_domain(model)
+        except PlanModel.DoesNotExist:
+            raise PlanNotFoundError("FREE plan not found. Please seed the database first.")

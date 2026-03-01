@@ -1,7 +1,7 @@
 """
 Billing Infrastructure Repositories — Django ORM implementations of billing domain interfaces.
 """
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -90,6 +90,21 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         SubscriptionModel.objects.filter(
             user_id=user_id, status__in=active_statuses
         ).update(status=SubscriptionStatus.CANCELED.value)
+
+    def create(
+        self,
+        user_id: UUID,
+        plan_id: UUID,
+        start_date: datetime,
+        end_date: Optional[datetime] = None,
+    ) -> Subscription:
+        """Creates a new subscription for a user."""
+        subscription = Subscription.create(
+            user_id=user_id,
+            plan_id=plan_id,
+            end_date=end_date,
+        )
+        return self.save(subscription)
 
 
 class DjangoDailyUsageRepository(DailyUsageRepository):

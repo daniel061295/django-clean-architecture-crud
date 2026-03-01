@@ -4,7 +4,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from injector import inject
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from core.permissions import HasSubscriptionScanPermission
+from billing.interfaces.permissions import HasSubscriptionScanPermission
 from store.plant_health.application.use_cases import AnalyzePlantHealth
 from store.plant_health.application.dtos import AnalyzePlantHealthInputDTO
 from store.plant_health.interfaces.serializers import AnalyzePlantHealthInputSerializer, PlantHealthAnalysisResponseSerializer

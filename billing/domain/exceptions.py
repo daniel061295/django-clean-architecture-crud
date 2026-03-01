@@ -22,3 +22,7 @@ class SubscriptionNotFoundError(DomainError):
 
 class PlanAlreadyExistsError(DomainError):
     """Raised when attempting to create a plan with a name that already exists."""
+
+
+class SubscriptionAlreadyExistsError(DomainError):
+    """Raised when attempting to create a subscription for a user that already has one."""

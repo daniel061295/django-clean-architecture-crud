@@ -5,6 +5,8 @@ Binds all identity domain interfaces to their Django ORM implementations.
 """
 from injector import Binder, Module, provider, singleton
 
+from billing.application.use_cases import CreateFreeSubscriptionForNewUser
+
 from identity.application.use_cases import (
     AssignPermissionToRole,
     AssignRoleToUser,
@@ -48,3 +50,12 @@ class IdentityModule(Module):
     def provide_get_user_permissions(self, repository: UserRepository) -> GetUserPermissions:
         """Provides GetUserPermissions use case."""
         return GetUserPermissions(repository)
+
+    @provider
+    def provide_create_user(
+        self,
+        role_repository: RoleRepository,
+        create_free_subscription: CreateFreeSubscriptionForNewUser,
+    ) -> CreateUser:
+        """Provides CreateUser use case with automatic FREE subscription creation."""
+        return CreateUser(role_repository, create_free_subscription)

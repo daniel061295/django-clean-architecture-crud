@@ -1,6 +1,8 @@
 """
 Billing Interface Serializers — DRF Serializers for billing REST endpoints.
 """
+from typing import Optional
+
 from rest_framework import serializers
 
 
@@ -49,3 +51,25 @@ class SubscriptionOutputSerializer(serializers.Serializer):
     start_date = serializers.CharField()
     end_date = serializers.CharField(allow_null=True)
     external_id = serializers.CharField(allow_null=True)
+
+
+class CreateSubscriptionInputSerializer(serializers.Serializer):
+    """Deserializes subscription creation requests."""
+    plan_id = serializers.UUIDField(required=False, allow_null=True)
+    
+    def get_plan_id(self) -> Optional[UUID]:
+        """Returns the plan_id if provided, None otherwise."""
+        return self.validated_data.get("plan_id")
+
+
+class AdminSubscriptionOutputSerializer(serializers.Serializer):
+    """Serializes subscription for admin listing with user details."""
+    id = serializers.CharField()
+    user_id = serializers.CharField()
+    user_email = serializers.CharField(source="user.email")
+    user_username = serializers.CharField(source="user.username")
+    plan_id = serializers.CharField()
+    plan_name = serializers.CharField(source="plan.name")
+    status = serializers.CharField()
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField(allow_null=True)

@@ -8,6 +8,8 @@ from uuid import UUID
 
 from injector import inject
 
+from billing.application.use_cases import CreateFreeSubscriptionForNewUser
+
 from identity.application.dtos import (
     AssignPermissionToRoleInputDTO,
     AssignRoleToUserInputDTO,
@@ -212,8 +214,13 @@ class CreateUser:
     """Creates a new Django user and optionally assigns default roles."""
 
     @inject
-    def __init__(self, role_repository: RoleRepository) -> None:
+    def __init__(
+        self,
+        role_repository: RoleRepository,
+        create_free_subscription: CreateFreeSubscriptionForNewUser = None,
+    ) -> None:
         self._role_repository = role_repository
+        self._create_free_subscription = create_free_subscription
 
     def execute(self, input_dto: CreateUserInputDTO) -> UserOutputDTO:
         """
@@ -241,6 +248,12 @@ class CreateUser:
             from identity.infrastructure.models import RoleModel  # noqa: PLC0415
             role_model = RoleModel.objects.get(id=role.id)
             user_model.roles.add(role_model)
+
+        # Create FREE subscription automatically for new users
+        if self._create_free_subscription is not None:
+            from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO  # noqa: PLC0415
+            free_sub_dto = CreateFreeSubscriptionForUserInputDTO(user_id=user_model.id)
+            self._create_free_subscription.execute(free_sub_dto)
 
         # Re-fetch with relations
         from identity.infrastructure.mappers import UserMapper  # noqa: PLC0415

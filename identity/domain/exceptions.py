@@ -8,6 +8,10 @@ class UserNotFoundError(DomainError):
     """Raised when a user cannot be found by the given identifier."""
 
 
+class UserAlreadyExistsError(DomainError):
+    """Raised when attempting to create a user with an email that already exists."""
+
+
 class RoleNotFoundError(DomainError):
     """Raised when a role cannot be found by the given identifier."""
 
@@ -26,3 +30,8 @@ class RoleAlreadyExistsError(DomainError):
 
 class PermissionAlreadyExistsError(DomainError):
     """Raised when attempting to create a permission with a code that already exists."""
+
+
+class AvatarValidationError(DomainError):
+    """Raised when the avatar image fails validation."""
+    pass

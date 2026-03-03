@@ -4,7 +4,7 @@ Billing Interface Views — DRF Views for billing REST endpoints.
 Public endpoints require HasPermission('manage_subscriptions') for admin operations.
 Views are dumb — all logic delegated to use cases.
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, extend_schema_view, OpenApiParameter
@@ -25,6 +25,7 @@ from billing.application.dtos import (
     CreateSubscriptionInputDTO,
 )
 from billing.application.use_cases import (
+    AssignProSubscription,
     CancelSubscription,
     ChangePlan,
     CreateFreeSubscriptionForNewUser,
@@ -42,9 +43,6 @@ from billing.interfaces.serializers import (
     PlanOutputSerializer,
     SubscriptionOutputSerializer,
 )
-from billing.infrastructure.models import PlanModel, SubscriptionModel
-from billing.domain.value_objects import SubscriptionStatus
-from django.utils import timezone
 from identity.interfaces.permissions import HasPermission
 
 
@@ -230,7 +228,9 @@ class AdminSubscriptionViewSet(viewsets.ViewSet):
         return "manage_subscriptions"
 
     @inject
-    def __init__(self, **kwargs):
+    def __init__(self, assign_pro_subscription: AssignProSubscription = None, create_free_subscription: CreateFreeSubscriptionForNewUser = None, **kwargs):
+        self._assign_pro = assign_pro_subscription
+        self._create_free = create_free_subscription
         super().__init__(**kwargs)
 
     def list(self, request: Request) -> Response:
@@ -253,32 +253,53 @@ class AdminSubscriptionViewSet(viewsets.ViewSet):
 
         return Response(AdminSubscriptionOutputSerializer(subscription).data)
 
-    @action(detail=True, methods=["post"], url_path="activate")
-    def activate(self, request: Request, pk: str = None) -> Response:
-        """Activates FREE subscription for a specific user."""
+    @action(detail=True, methods=["post"], url_path="assign-pro")
+    def assign_pro(self, request: Request, pk: str = None) -> Response:
+        """Assigns PRO subscription to a user (cancels any existing subscription)."""
         try:
-            free_plan = PlanModel.objects.get(name="FREE")
-        except PlanModel.DoesNotExist:
+            from uuid import UUID
+            user_id = UUID(pk)
+            result = self._assign_pro.execute(user_id)
             return Response(
-                {"error": "FREE plan not found. Please seed the database first."},
-                status=status.HTTP_404_NOT_FOUND
+                {
+                    "message": f"PRO subscription assigned to user {pk}",
+                    "subscription": SubscriptionOutputSerializer(result).data,
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        sub, created = SubscriptionModel.objects.update_or_create(
-            user_id=pk,
-            defaults={
-                "plan_id": free_plan.id,
-                "status": SubscriptionStatus.ACTIVE.value,
-                "start_date": timezone.now(),
-                "end_date": timezone.now() + timedelta(days=30),
-            }
-        )
+    @action(detail=True, methods=["post"], url_path="assign-free")
+    def assign_free(self, request: Request, pk: str = None) -> Response:
+        """Assigns FREE subscription to a user (permanent, no expiration)."""
+        try:
+            from uuid import UUID
+            from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO
+            user_id = UUID(pk)
+            input_dto = CreateFreeSubscriptionForUserInputDTO(user_id=user_id)
+            result = self._create_free.execute(input_dto)
+            return Response(
+                {
+                    "message": f"FREE subscription assigned to user {pk} (permanent, no expiration)",
+                    "subscription": SubscriptionOutputSerializer(result).data,
+                },
+                status=status.HTTP_201_CREATED if result.id else status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(
-            {"message": f"FREE subscription activated for user {pk}"},
-            status=status_code
-        )
+    @action(detail=True, methods=["post"], url_path="activate")
+    def activate(self, request: Request, pk: str = None) -> Response:
+        """Activates FREE subscription for a specific user (legacy endpoint)."""
+        # Legacy endpoint - use assign-free instead
+        return self.assign_free(request, pk)
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request: Request, pk: str = None) -> Response:

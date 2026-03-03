@@ -1,13 +1,20 @@
 """
 Django management command to seed identity data (permissions, roles, users).
+
+Uses application use cases to ensure business logic is properly applied,
+including automatic assignment of default user avatars.
 """
 from django.core.management.base import BaseCommand
+from injector import Injector
 
-from identity.models import CustomUserModel, PermissionModel, RoleModel
+from config.di import create_injector
+from identity.application.dtos import CreatePermissionInputDTO, CreateRoleInputDTO, CreateUserInputDTO
+from identity.application.use_cases import CreatePermission, CreateRole, CreateUser
+from identity.domain.exceptions import PermissionAlreadyExistsError, RoleAlreadyExistsError
 
 
 class Command(BaseCommand):
-    """Command to seed the database with permissions, roles, and users."""
+    """Command to seed the database with permissions, roles, and test users."""
 
     help = "Seed the database with permissions, roles, and test users"
 
@@ -61,68 +68,62 @@ class Command(BaseCommand):
         },
     ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.injector: Injector = None
+
     def handle(self, *args, **kwargs) -> None:
         self.stdout.write("Starting identity seed...\n")
 
+        # Initialize injector for use case dependencies
+        self.injector = create_injector()
+
         # Step 1: Create permissions
         self.stdout.write("Step 1: Creating permissions...")
-        permissions_map = {}
+        permission_use_case = self.injector.get(CreatePermission)
+        
         for perm_data in self.PERMISSIONS_DATA:
-            perm, created = PermissionModel.objects.update_or_create(
-                code=perm_data["code"],
-                defaults={"description": perm_data["description"]},
-            )
-            permissions_map[perm_data["code"]] = perm
-            status = "CREATED" if created else "UPDATED"
-            self.stdout.write(self.style.SUCCESS(f"  [{status}] {perm.code}"))
+            try:
+                input_dto = CreatePermissionInputDTO(**perm_data)
+                permission_use_case.execute(input_dto)
+                self.stdout.write(self.style.SUCCESS(f"  [CREATED] {perm_data['code']}"))
+            except PermissionAlreadyExistsError:
+                self.stdout.write(self.style.WARNING(f"  [EXISTS] {perm_data['code']}"))
 
         # Step 2: Create roles with their permissions
         self.stdout.write("\nStep 2: Creating roles...")
-        roles_map = {}
+        role_use_case = self.injector.get(CreateRole)
+        
         for role_name, perm_codes in self.ROLES_DATA.items():
-            role, created = RoleModel.objects.update_or_create(
-                name=role_name,
-                defaults={},
-            )
-            # Set permissions for the role
-            role_permissions = [permissions_map[code] for code in perm_codes]
-            role.permissions.set(role_permissions)
-            roles_map[role_name] = role
-            status = "CREATED" if created else "UPDATED"
-            self.stdout.write(
-                self.style.SUCCESS(f"  [{status}] {role.name} ({len(perm_codes)} permissions)")
-            )
+            try:
+                input_dto = CreateRoleInputDTO(name=role_name, permission_codes=perm_codes)
+                role_use_case.execute(input_dto)
+                self.stdout.write(self.style.SUCCESS(f"  [CREATED] {role_name} ({len(perm_codes)} permissions)"))
+            except RoleAlreadyExistsError:
+                self.stdout.write(self.style.WARNING(f"  [EXISTS] {role_name}"))
 
-        # Step 3: Create users with their roles
-        self.stdout.write("\nStep 3: Creating users...")
+        # Step 3: Create users with their roles (using use case for avatar assignment)
+        self.stdout.write("\nStep 3: Creating users (with default avatar)...")
+        user_use_case = self.injector.get(CreateUser)
+        
         for user_data in self.USERS_DATA:
-            user, created = CustomUserModel.objects.update_or_create(
-                email=user_data["email"],
-                defaults={
-                    "username": user_data["username"],
-                    "is_staff": user_data.get("is_staff", False),
-                    "is_superuser": user_data.get("is_superuser", False),
-                    "is_active": True,
-                },
-            )
-            # Set a default password if user is new
-            if created:
-                user.set_password("Test123!")
-                user.save()
-
-            # Set roles for the user
-            user_roles = [roles_map[role_name] for role_name in user_data["roles"]]
-            user.roles.set(user_roles)
-
-            status = "CREATED" if created else "UPDATED"
-            role_names = ", ".join(user_data["roles"])
-            self.stdout.write(
-                self.style.SUCCESS(f"  [{status}] {user.email} (roles: {role_names})")
-            )
+            try:
+                input_dto = CreateUserInputDTO(
+                    email=user_data["email"],
+                    username=user_data["username"],
+                    password="Test123!",
+                    role_names=user_data["roles"],
+                )
+                user_use_case.execute(input_dto)
+                role_names = ", ".join(user_data["roles"])
+                self.stdout.write(self.style.SUCCESS(f"  [CREATED] {user_data['email']} (roles: {role_names}) - with default avatar"))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"  [EXISTS] {user_data['email']} - {str(e)}"))
 
         self.stdout.write(self.style.SUCCESS("\nSuccessfully seeded identity data!"))
         self.stdout.write(
             self.style.WARNING(
-                "\nNote: New users have been assigned the default password: Test123!"
+                "\nNote: New users have been assigned the default password: Test123!\n"
+                "All users have been assigned the default avatar image."
             )
         )

@@ -7,9 +7,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from identity.interfaces.views import (
     MyPermissionsView,
+    UserProfileView,
+    UserAvatarView,
     PermissionViewSet,
     RoleViewSet,
     UserViewSet,
+    GoogleLoginView,
 )
 
 router = DefaultRouter()
@@ -19,6 +22,8 @@ router.register(r"users", UserViewSet, basename="user")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("me/", UserProfileView.as_view(), name="identity-me-profile"),
+    path("me/avatar/", UserAvatarView.as_view(), name="identity-me-avatar"),
     path("me/permissions/", MyPermissionsView.as_view(), name="identity-me-permissions"),
 ]
 
@@ -27,4 +32,5 @@ auth_urlpatterns = [
     path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("verify/", TokenVerifyView.as_view(), name="token_verify"),
+    path("google/", GoogleLoginView.as_view(), name="token_google"),
 ]

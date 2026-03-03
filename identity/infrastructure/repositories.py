@@ -136,3 +136,17 @@ class DjangoUserRepository(UserRepository):
         role_model = RoleModel.objects.get(id=role_id)
         user_model.roles.remove(role_model)
         return self._get_with_roles(user_model)
+
+    def update_avatar(self, user_id: UUID, avatar_base64: str) -> User:
+        """Updates the user's avatar with a base64 encoded image. Returns updated user entity."""
+        user_model = CustomUserModel.objects.get(id=user_id)
+        user_model.avatar = avatar_base64
+        user_model.save(update_fields=["avatar"])
+        return self._get_with_roles(user_model)
+
+    def delete_avatar(self, user_id: UUID) -> User:
+        """Deletes the user's avatar image. Returns updated user entity."""
+        user_model = CustomUserModel.objects.get(id=user_id)
+        user_model.avatar = ""
+        user_model.save(update_fields=["avatar"])
+        return self._get_with_roles(user_model)

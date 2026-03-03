@@ -35,7 +35,13 @@ def drf_exception_handler(exc, context):
     if response is None:
         # Import lazily to avoid circular imports at module load time
         from billing.domain.exceptions import ScanLimitExceededError, NoActiveSubscriptionError  # noqa: PLC0415
-        from identity.domain.exceptions import PermissionDeniedError  # noqa: PLC0415
+        from identity.domain.exceptions import PermissionDeniedError, UserAlreadyExistsError  # noqa: PLC0415
+
+        if isinstance(exc, UserAlreadyExistsError):
+            return Response(
+                {"error": str(exc), "code": "USER_ALREADY_EXISTS"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if isinstance(exc, ScanLimitExceededError):
             return Response(

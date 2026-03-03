@@ -6,6 +6,7 @@ Binds all billing domain interfaces to their Django ORM implementations.
 from injector import Binder, Module, provider
 
 from billing.application.use_cases import (
+    AssignProSubscription,
     AuthorizePlantScan,
     CancelSubscription,
     ChangePlan,
@@ -118,3 +119,12 @@ class BillingModule(Module):
     ) -> CreateFreeSubscriptionForNewUser:
         """Provides CreateFreeSubscriptionForNewUser use case."""
         return CreateFreeSubscriptionForNewUser(subscription_repository, plan_repository)
+
+    @provider
+    def provide_assign_pro_subscription(
+        self,
+        subscription_repository: SubscriptionRepository,
+        plan_repository: PlanRepository,
+    ) -> AssignProSubscription:
+        """Provides AssignProSubscription use case."""
+        return AssignProSubscription(subscription_repository, plan_repository)

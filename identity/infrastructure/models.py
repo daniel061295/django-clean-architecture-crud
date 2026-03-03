@@ -62,10 +62,25 @@ class CustomUserModel(AbstractUser):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
+    username = models.CharField(
+        max_length=150,
+        unique=False,
+        blank=True,
+    )
     roles = models.ManyToManyField(
         RoleModel,
         related_name="users",
         blank=True,
+    )
+    avatar = models.TextField(
+        blank=True,
+        default="",
+        help_text="User profile avatar as base64 encoded string.",
+    )
+    auth_provider = models.CharField(
+        max_length=50,
+        default="local",
+        help_text="Provider used to authenticate ('local', 'google', etc.)."
     )
 
     USERNAME_FIELD = "email"

@@ -54,4 +54,6 @@ class UserMapper:
             username=model.username,
             roles=roles,
             is_active=model.is_active,
+            avatar=model.avatar,
+            auth_provider=model.auth_provider,
         )

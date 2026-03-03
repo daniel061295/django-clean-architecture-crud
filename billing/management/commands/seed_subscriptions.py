@@ -1,13 +1,14 @@
 """
 Django management command to seed subscriptions for test users.
+
+Uses application use cases to ensure business logic is properly applied,
+including automatic cancellation of FREE subscriptions when assigning PRO.
 """
-from datetime import datetime, timedelta
-
 from django.core.management.base import BaseCommand
-from django.utils import timezone
+from injector import Injector
 
-from billing.models import PlanModel, SubscriptionModel
-from identity.models import CustomUserModel
+from config.di import create_injector
+from billing.application.use_cases import AssignProSubscription, CreateFreeSubscriptionForNewUser
 
 
 class Command(BaseCommand):
@@ -18,88 +19,70 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs) -> None:
         self.stdout.write("Starting subscriptions seed...\n")
 
-        # Get plans
-        try:
-            free_plan = PlanModel.objects.get(name="FREE")
-            pro_plan = PlanModel.objects.get(name="PRO")
-        except PlanModel.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(
-                    "Error: Plans not found. Run 'python manage.py seed_billing' first."
-                )
-            )
-            return
+        # Initialize injector for use case dependencies
+        self.injector = create_injector()
 
-        # Get users
+        # Get use cases
+        assign_pro = self.injector.get(AssignProSubscription)
+        create_free = self.injector.get(CreateFreeSubscriptionForNewUser)
+
+        # Assign PRO subscription to admin user (daniel061295@gmail.com)
+        # This will automatically cancel any existing FREE subscription
         try:
+            from identity.models import CustomUserModel
             admin_user = CustomUserModel.objects.get(email="daniel061295@gmail.com")
-            subscriber_user = CustomUserModel.objects.get(email="subscriber@test.com")
-            free_user = CustomUserModel.objects.get(email="freeuser@test.com")
-        except CustomUserModel.DoesNotExist as e:
+            assign_pro.execute(admin_user.id)
             self.stdout.write(
-                self.style.ERROR(
-                    f"Error: User not found. Run 'python manage.py seed_identity' first. ({e})"
+                self.style.SUCCESS(
+                    f"  [ASSIGNED] PRO subscription for {admin_user.email} (FREE canceled if existed)"
                 )
             )
-            return
-
-        # Calculate end date (1 month from now)
-        start_date = timezone.now()
-        end_date = start_date + timedelta(days=30)
-
-        # Create subscription for admin user (daniel061295@gmail.com) - PRO
-        admin_sub, created = SubscriptionModel.objects.update_or_create(
-            user=admin_user,
-            plan=pro_plan,
-            defaults={
-                "status": "ACTIVE",
-                "start_date": start_date,
-                "end_date": end_date,
-            },
-        )
-        status = "CREATED" if created else "UPDATED"
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"  [{status}] PRO subscription for {admin_user.email} (ends: {end_date.date()})"
+        except CustomUserModel.DoesNotExist:
+            self.stdout.write(
+                self.style.WARNING(
+                    "  [SKIP] Admin user 'daniel061295@gmail.com' not found"
+                )
             )
-        )
 
-        # Create subscription for subscriber user - PRO
-        subscriber_sub, created = SubscriptionModel.objects.update_or_create(
-            user=subscriber_user,
-            plan=pro_plan,
-            defaults={
-                "status": "ACTIVE",
-                "start_date": start_date,
-                "end_date": end_date,
-            },
-        )
-        status = "CREATED" if created else "UPDATED"
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"  [{status}] PRO subscription for {subscriber_user.email} (ends: {end_date.date()})"
+        # Assign PRO subscription to subscriber user
+        try:
+            subscriber_user = CustomUserModel.objects.get(email="subscriber@example.com")
+            assign_pro.execute(subscriber_user.id)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"  [ASSIGNED] PRO subscription for {subscriber_user.email} (FREE canceled if existed)"
+                )
             )
-        )
-
-        # For free_user, we create an expired subscription to FREE plan
-        # or leave them without an active subscription
-        expired_start = start_date - timedelta(days=60)
-        expired_end = start_date - timedelta(days=30)
-
-        free_sub, created = SubscriptionModel.objects.update_or_create(
-            user=free_user,
-            plan=free_plan,
-            defaults={
-                "status": "CANCELED",
-                "start_date": expired_start,
-                "end_date": expired_end,
-            },
-        )
-        status = "CREATED" if created else "UPDATED"
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"  [{status}] CANCELED FREE subscription for {free_user.email} (expired: {expired_end.date()})"
+        except CustomUserModel.DoesNotExist:
+            self.stdout.write(
+                self.style.WARNING(
+                    "  [SKIP] Subscriber user 'subscriber@example.com' not found"
+                )
             )
-        )
+
+        # Create FREE subscription for freeuser (permanent, no end date)
+        try:
+            from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO
+            free_user = CustomUserModel.objects.get(email="freeuser@test.com")
+            input_dto = CreateFreeSubscriptionForUserInputDTO(user_id=free_user.id)
+            create_free.execute(input_dto)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"  [ASSIGNED] FREE subscription for {free_user.email} (permanent, no expiration)"
+                )
+            )
+        except CustomUserModel.DoesNotExist:
+            self.stdout.write(
+                self.style.WARNING(
+                    "  [SKIP] Free user 'freeuser@test.com' not found"
+                )
+            )
 
         self.stdout.write(self.style.SUCCESS("\nSuccessfully seeded subscriptions!"))
+        self.stdout.write(
+            self.style.WARNING(
+                "\nNote: PRO subscriptions expire in 30 days.\n"
+                "FREE subscriptions are permanent (no expiration).\n"
+                "When PRO expires, users automatically return to FREE."
+            )
+        )

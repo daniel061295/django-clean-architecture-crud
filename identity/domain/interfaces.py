@@ -78,3 +78,30 @@ class UserRepository(ABC):
     @abstractmethod
     def remove_role(self, user_id: UUID, role_id: UUID) -> User:
         """Removes a role from a user. Returns the updated user entity."""
+
+    @abstractmethod
+    def update_avatar(self, user_id: UUID, avatar_base64: str) -> User:
+        """Updates the user's avatar with a base64 encoded image. Returns the updated user entity."""
+
+    @abstractmethod
+    def delete_avatar(self, user_id: UUID) -> User:
+        """Deletes the user's avatar image. Returns the updated user entity."""
+
+
+class GoogleAuthServiceInterface(ABC):
+    """Abstract interface for Google Auth verification service."""
+
+    @abstractmethod
+    def verify_google_token(self, token: str) -> dict:
+        """
+        Verifies a Google OAuth token.
+
+        Args:
+            token: The Google JWT token.
+
+        Returns:
+            dict: The decoded token payload containing email, given_name, etc.
+            
+        Raises:
+            ValueError: If the token is invalid.
+        """

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 
@@ -87,6 +87,7 @@ class User:
         username: Optional username.
         roles: List of roles assigned to this user.
         is_active: Whether the user account is active.
+        avatar: Base64 encoded image string (data:image/...;base64,...).
     """
 
     id: UUID
@@ -94,6 +95,8 @@ class User:
     username: str
     roles: List[Role] = field(default_factory=list)
     is_active: bool = True
+    avatar: str = ""
+    auth_provider: str = "local"
 
     def has_permission(self, permission_code: str) -> bool:
         """
@@ -108,15 +111,16 @@ class User:
         return any(role.has_permission(permission_code) for role in self.roles)
 
     @classmethod
-    def create(cls, email: str, username: str) -> "User":
+    def create(cls, email: str, username: str, auth_provider: str = "local") -> "User":
         """
         Factory method to create a new User with a generated UUID.
 
         Args:
             email: User email address.
             username: User username.
+            auth_provider: Provider used to create the user (e.g. 'local', 'google').
 
         Returns:
             A new User entity.
         """
-        return cls(id=uuid.uuid4(), email=email, username=username)
+        return cls(id=uuid.uuid4(), email=email, username=username, auth_provider=auth_provider)

@@ -3,14 +3,18 @@ Identity Application Use Cases — Business orchestration for RBAC management.
 
 Each class handles a single, specific business action following the Command Pattern.
 """
+import base64
+import re
 from typing import List
 from uuid import UUID
 
 from injector import inject
 
-from billing.application.use_cases import CreateFreeSubscriptionForNewUser
+from billing.application.use_cases import AssignProSubscription, CreateFreeSubscriptionForNewUser
 
 from identity.application.dtos import (
+    MAX_AVATAR_SIZE_BYTES,
+    ALLOWED_AVATAR_MIME_TYPES,
     AssignPermissionToRoleInputDTO,
     AssignRoleToUserInputDTO,
     CheckUserPermissionInputDTO,
@@ -18,22 +22,35 @@ from identity.application.dtos import (
     CreatePermissionInputDTO,
     CreateRoleInputDTO,
     CreateUserInputDTO,
+    DeleteUserAvatarInputDTO,
     GetUserPermissionsInputDTO,
     GetUserPermissionsOutputDTO,
+    GetUserProfileInputDTO,
     PermissionOutputDTO,
     RemoveRoleFromUserInputDTO,
     RoleOutputDTO,
+    UpdateUserAvatarInputDTO,
+    UserAvatarOutputDTO,
+    UserProfileOutputDTO,
     UserOutputDTO,
+    AuthenticateWithGoogleInputDTO,
 )
 from identity.domain.entities import Permission, Role, User
 from identity.domain.exceptions import (
+    AvatarValidationError,
     PermissionAlreadyExistsError,
     PermissionNotFoundError,
     RoleAlreadyExistsError,
     RoleNotFoundError,
     UserNotFoundError,
+    UserAlreadyExistsError,
 )
-from identity.domain.interfaces import PermissionRepository, RoleRepository, UserRepository
+from identity.domain.interfaces import (
+    GoogleAuthServiceInterface,
+    PermissionRepository,
+    RoleRepository,
+    UserRepository,
+)
 from identity.infrastructure.models import CustomUserModel
 
 
@@ -211,23 +228,30 @@ class AssignPermissionToRole:
 # ---------------------------------------------------------------------------
 
 class CreateUser:
-    """Creates a new Django user and optionally assigns default roles."""
+    """Creates a new Django user and assigns subscription based on plan_name."""
 
     @inject
     def __init__(
         self,
         role_repository: RoleRepository,
+        user_repository: UserRepository,
         create_free_subscription: CreateFreeSubscriptionForNewUser = None,
+        assign_pro_subscription: AssignProSubscription = None,
     ) -> None:
         self._role_repository = role_repository
+        self._user_repository = user_repository
         self._create_free_subscription = create_free_subscription
+        self._assign_pro_subscription = assign_pro_subscription
 
     def execute(self, input_dto: CreateUserInputDTO) -> UserOutputDTO:
         """
-        Creates a new user via Django's ORM and assigns roles by name.
+        Creates a new user via Django's ORM and assigns subscription based on plan_name.
+        - If plan_name="FREE" (default): Creates FREE subscription (permanent)
+        - If plan_name="PRO": Creates PRO subscription (30 days)
+        Assigns default avatar to the new user.
 
         Args:
-            input_dto: User creation data.
+            input_dto: User creation data with optional plan_name.
 
         Returns:
             UserOutputDTO: The created user.
@@ -235,11 +259,20 @@ class CreateUser:
         Raises:
             RoleNotFoundError: If any specified role name does not exist.
         """
+        from identity.application.dtos import DEFAULT_USER_AVATAR  # noqa: PLC0415
+        
+        # Check if email already exists
+        if self._user_repository.get_by_email(input_dto.email) is not None:
+            raise UserAlreadyExistsError(f"El correo {input_dto.email} ya se encuentra registrado.")
+
+        avatar_to_use = input_dto.avatar if input_dto.avatar else DEFAULT_USER_AVATAR
+
         # Use Django's manager to safely hash the password
         user_model = CustomUserModel.objects.create_user(
             email=input_dto.email,
             username=input_dto.username,
             password=input_dto.password,
+            avatar=avatar_to_use,  # Set default avatar or custom
         )
         for role_name in input_dto.role_names:
             role = self._role_repository.get_by_name(role_name)
@@ -249,11 +282,18 @@ class CreateUser:
             role_model = RoleModel.objects.get(id=role.id)
             user_model.roles.add(role_model)
 
-        # Create FREE subscription automatically for new users
-        if self._create_free_subscription is not None:
-            from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO  # noqa: PLC0415
-            free_sub_dto = CreateFreeSubscriptionForUserInputDTO(user_id=user_model.id)
-            self._create_free_subscription.execute(free_sub_dto)
+        # Create subscription based on plan_name
+        if input_dto.plan_name.upper() == "PRO":
+            # Assign PRO subscription (cancels any existing FREE)
+            if self._assign_pro_subscription is not None:
+                from billing.application.use_cases import AssignProSubscription  # noqa: PLC0415
+                self._assign_pro_subscription.execute(user_model.id)
+        else:
+            # Create FREE subscription (permanent, default)
+            if self._create_free_subscription is not None:
+                from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO  # noqa: PLC0415
+                free_sub_dto = CreateFreeSubscriptionForUserInputDTO(user_id=user_model.id)
+                self._create_free_subscription.execute(free_sub_dto)
 
         # Re-fetch with relations
         from identity.infrastructure.mappers import UserMapper  # noqa: PLC0415
@@ -354,6 +394,64 @@ class RemoveRoleFromUser:
         return _user_to_dto(updated)
 
 
+class AuthenticateWithGoogle:
+    """Authenticates a user via Google OAuth, creating a new local user if they don't exist."""
+
+    @inject
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        role_repository: RoleRepository,
+        google_service: GoogleAuthServiceInterface,
+        create_free_subscription: CreateFreeSubscriptionForNewUser = None,
+    ) -> None:
+        self._user_repository = user_repository
+        self._role_repository = role_repository
+        self._google_service = google_service
+        self._create_free_subscription = create_free_subscription
+
+    def execute(self, input_dto: AuthenticateWithGoogleInputDTO) -> UserOutputDTO:
+        # Verify token
+        payload = self._google_service.verify_google_token(input_dto.token)
+        email = payload.get("email")
+        if not email:
+            raise ValueError("Google token did not contain an email address.")
+
+        user = self._user_repository.get_by_email(email)
+        if user is None:
+            # Create user in Django
+            from identity.infrastructure.models import CustomUserModel, RoleModel
+            from identity.application.dtos import DEFAULT_USER_AVATAR
+            
+            # Using email as username base to keep it simple
+            username = email.split("@")[0]
+            
+            user_model = CustomUserModel.objects.create_user(
+                email=email,
+                username=username,
+                password=None,  # No password for Google users
+                avatar=payload.get("picture", DEFAULT_USER_AVATAR),
+                auth_provider="google"
+            )
+            
+            # They should be 'free_user' with FREE sub initially
+            role = self._role_repository.get_by_name("free_user")
+            if role:
+                role_model = RoleModel.objects.get(id=role.id)
+                user_model.roles.add(role_model)
+                
+            if self._create_free_subscription:
+                from billing.application.dtos import CreateFreeSubscriptionForUserInputDTO
+                free_sub_dto = CreateFreeSubscriptionForUserInputDTO(user_id=user_model.id)
+                self._create_free_subscription.execute(free_sub_dto)
+            
+            from identity.infrastructure.mappers import UserMapper
+            refreshed = CustomUserModel.objects.prefetch_related("roles__permissions").get(id=user_model.id)
+            user = UserMapper.to_domain(refreshed)
+
+        return _user_to_dto(user)
+
+
 # ---------------------------------------------------------------------------
 # Permission Check Use Cases
 # ---------------------------------------------------------------------------
@@ -406,3 +504,157 @@ class CheckUserPermission:
 
         has_permission = user.has_permission(input_dto.permission_code)
         return CheckUserPermissionOutputDTO(has_permission=has_permission)
+
+
+# ---------------------------------------------------------------------------
+# User Profile Use Cases (for /me endpoint)
+# ---------------------------------------------------------------------------
+
+class GetUserProfile:
+    """Returns the full profile of a user including avatar, roles, and permissions."""
+
+    @inject
+    def __init__(self, repository: UserRepository) -> None:
+        self._repository = repository
+
+    def execute(self, input_dto: GetUserProfileInputDTO) -> UserProfileOutputDTO:
+        """
+        Returns the full profile of a user.
+
+        Args:
+            input_dto: User UUID.
+
+        Returns:
+            UserProfileOutputDTO: User profile with avatar, roles, and permissions.
+        """
+        user = self._repository.get_by_id(input_dto.user_id)
+        if user is None:
+            raise UserNotFoundError(f"User '{input_dto.user_id}' not found.")
+
+        permission_codes = list({p.code for role in user.roles for p in role.permissions})
+        
+        return UserProfileOutputDTO(
+            id=str(user.id),
+            email=user.email,
+            username=user.username,
+            is_active=user.is_active,
+            avatar=user.avatar,
+            roles=[_role_to_dto(r) for r in user.roles],
+            permissions=permission_codes,
+        )
+
+
+# ---------------------------------------------------------------------------
+# User Avatar Use Cases
+# ---------------------------------------------------------------------------
+
+# Regex pattern for valid base64 image with data URI scheme
+BASE64_IMAGE_PATTERN = re.compile(
+    r'^data:(?P<mime>image/(jpeg|png|webp));base64,[A-Za-z0-9+/]+=*$'
+)
+
+
+def _validate_avatar_base64(avatar_base64: str) -> str:
+    """
+    Validates a base64 encoded avatar image.
+    
+    Args:
+        avatar_base64: The base64 string with data URI scheme.
+        
+    Returns:
+        The MIME type of the image.
+        
+    Raises:
+        AvatarValidationError: If the avatar is invalid.
+    """
+    if not avatar_base64:
+        raise AvatarValidationError("Avatar cannot be empty.")
+    
+    # Check size limit (base64 is ~33% larger than binary)
+    if len(avatar_base64) > MAX_AVATAR_SIZE_BYTES * 4 // 3:
+        raise AvatarValidationError(
+            f"Avatar size exceeds maximum of {MAX_AVATAR_SIZE_BYTES // 1024 // 1024}MB."
+        )
+    
+    # Validate format with regex
+    match = BASE64_IMAGE_PATTERN.match(avatar_base64)
+    if not match:
+        raise AvatarValidationError(
+            "Invalid image format. Must be data:image/jpeg;base64, data:image/png;base64, "
+            "or data:image/webp;base64 followed by valid base64 data."
+        )
+    
+    mime_type = match.group('mime')
+    if mime_type not in ALLOWED_AVATAR_MIME_TYPES:
+        raise AvatarValidationError(
+            f"Image type '{mime_type}' not allowed. Allowed types: {', '.join(ALLOWED_AVATAR_MIME_TYPES)}"
+        )
+    
+    # Verify base64 can be decoded
+    try:
+        base64_data = avatar_base64.split(',', 1)[1]
+        base64.b64decode(base64_data, validate=True)
+    except Exception:
+        raise AvatarValidationError("Invalid base64 encoding.")
+    
+    return mime_type
+
+
+class UpdateUserAvatar:
+    """Updates a user's avatar image."""
+
+    @inject
+    def __init__(self, repository: UserRepository) -> None:
+        self._repository = repository
+
+    def execute(self, input_dto: UpdateUserAvatarInputDTO) -> UserAvatarOutputDTO:
+        """
+        Updates the user's avatar image.
+
+        Args:
+            input_dto: User UUID and avatar base64 string.
+
+        Returns:
+            UserAvatarOutputDTO: The updated avatar.
+
+        Raises:
+            UserNotFoundError: If the user does not exist.
+            AvatarValidationError: If the avatar is invalid.
+        """
+        user = self._repository.get_by_id(input_dto.user_id)
+        if user is None:
+            raise UserNotFoundError(f"User '{input_dto.user_id}' not found.")
+        
+        # Validate the base64 avatar
+        _validate_avatar_base64(input_dto.avatar_base64)
+
+        updated_user = self._repository.update_avatar(input_dto.user_id, input_dto.avatar_base64)
+        return UserAvatarOutputDTO(avatar=updated_user.avatar)
+
+
+class DeleteUserAvatar:
+    """Deletes a user's avatar image."""
+
+    @inject
+    def __init__(self, repository: UserRepository) -> None:
+        self._repository = repository
+
+    def execute(self, input_dto: DeleteUserAvatarInputDTO) -> UserAvatarOutputDTO:
+        """
+        Deletes the user's avatar image.
+
+        Args:
+            input_dto: User UUID.
+
+        Returns:
+            UserAvatarOutputDTO: Empty avatar string.
+
+        Raises:
+            UserNotFoundError: If the user does not exist.
+        """
+        user = self._repository.get_by_id(input_dto.user_id)
+        if user is None:
+            raise UserNotFoundError(f"User '{input_dto.user_id}' not found.")
+
+        updated_user = self._repository.delete_avatar(input_dto.user_id)
+        return UserAvatarOutputDTO(avatar=updated_user.avatar)

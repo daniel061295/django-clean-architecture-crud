@@ -35,6 +35,7 @@ DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
 
 # Application definition

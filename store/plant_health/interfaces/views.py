@@ -8,7 +8,7 @@ from billing.interfaces.permissions import HasSubscriptionScanPermission
 from store.plant_health.application.use_cases import AnalyzePlantHealth
 from store.plant_health.application.dtos import AnalyzePlantHealthInputDTO
 from store.plant_health.interfaces.serializers import AnalyzePlantHealthInputSerializer, PlantHealthAnalysisResponseSerializer
-from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError
+from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError, ServiceUnavailableError
 
 
 class PlantHealthView(viewsets.ViewSet):
@@ -81,6 +81,11 @@ class PlantHealthView(viewsets.ViewSet):
                     "urgency_level": "Low"
                 },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        except ServiceUnavailableError as e:
+            return Response(
+                {"error": str(e), "code": "AI_UNAVAILABLE"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
         except Exception as e:
             # General error handling

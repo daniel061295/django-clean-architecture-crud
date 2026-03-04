@@ -9,3 +9,7 @@ class LowConfidenceError(PlantHealthAnalysisError):
 class InvalidPlantImageError(PlantHealthAnalysisError):
     """Raised when the provided image does not contain a clear or recognizable plant."""
     pass
+
+class ServiceUnavailableError(PlantHealthAnalysisError):
+    """Raised when the AI service is temporarily unavailable (e.g. 503 from Gemini)."""
+    pass

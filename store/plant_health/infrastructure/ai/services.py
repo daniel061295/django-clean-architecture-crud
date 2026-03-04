@@ -8,7 +8,7 @@ from google.genai import types, errors
 
 from store.plant_health.domain.entities import PlantHealthReport
 from store.plant_health.domain.interfaces import PlantHealthService
-from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError
+from store.plant_health.domain.exceptions import LowConfidenceError, InvalidPlantImageError, ServiceUnavailableError
 
 class GeminiPlantHealthService(PlantHealthService):
     """
@@ -33,13 +33,20 @@ class GeminiPlantHealthService(PlantHealthService):
             return report
 
         except (errors.APIError, errors.ClientError) as e:
-            # Handle specific API Client Errors (like 429 Quota Exceeded)
-            if e.code == 429 or (hasattr(e, 'status_code') and e.status_code == 429):
-                logging.warning(f"Gemini API Quota Exceeded for primary model ({self.model_name}), falling back to {self.fallback_model_name}")
+            # Handle rate limit (429) or service overload (503) — try fallback model
+            is_rate_limit = e.code == 429 or (hasattr(e, 'status_code') and e.status_code == 429)
+            is_overloaded = e.code == 503 or (hasattr(e, 'status_code') and e.status_code == 503)
+
+            if is_rate_limit or is_overloaded:
+                reason = "Quota Exceeded" if is_rate_limit else "Service Overloaded (503)"
+                logging.warning(f"Gemini primary model failed ({reason}), falling back to {self.fallback_model_name}")
                 try:
-                    # Retry with fallback model
                     return self.__call_gemini_api(image_bytes, use_fallback=True)
                 except (errors.APIError, errors.ClientError) as fb_error:
+                    if fb_error.code in (429, 503) or (hasattr(fb_error, 'status_code') and fb_error.status_code in (429, 503)):
+                        raise ServiceUnavailableError(
+                            "El servicio de análisis de IA está temporalmente saturado. Por favor intenta en unos segundos."
+                        ) from fb_error
                     logging.error(f"Fallback model also failed: {fb_error}")
                     raise LowConfidenceError("Service is temporarily busy. Please try again later.") from fb_error
                 except Exception as fb_ex:
@@ -48,6 +55,13 @@ class GeminiPlantHealthService(PlantHealthService):
             
             logging.error(f"Gemini Client/API Error: {e}")
             raise e
+
+        except OSError as e:
+            # Network-level error (DNS failure, no connection, etc.)
+            logging.error(f"Network error reaching Gemini API: {e}")
+            raise ServiceUnavailableError(
+                "No se pudo conectar al servicio de análisis de IA. Verifica tu conexión a internet."
+            ) from e
 
         except Exception as e:
             logging.error(f"Unexpected Error during photo analysis: {e}")

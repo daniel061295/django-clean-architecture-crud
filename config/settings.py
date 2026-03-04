@@ -32,8 +32,10 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-y*muz&3^w7b^bess(rc(hgnm
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
 
+# Trusted origins for CSRF (Railway domains, frontend URLs)
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
@@ -55,19 +57,25 @@ INSTALLED_APPS = [
     "billing",
     "drf_spectacular",
     "django_injector",
+    "corsheaders",
 ]
 # Custom User Model
 AUTH_USER_MODEL = "identity.CustomUserModel"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add WhiteNoise right after SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",       # Add CorsMiddleware before CommonMiddleware
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# Allow CORS for all domains for now (or specify frontend domain)
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = "config.urls"
 
@@ -89,14 +97,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# Database
+# Database — Neon (PostgreSQL)
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": env.db("DATABASE_URL")
+}
+# Enforce SSL for Neon
+DATABASES["default"]["OPTIONS"] = {
+    "sslmode": "require",
+    "channel_binding": "require",
 }
 
 
@@ -135,6 +144,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Tell WhiteNoise to compress and cache static files
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Email settings
 if DEBUG:

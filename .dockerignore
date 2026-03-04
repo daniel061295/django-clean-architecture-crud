@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite config (we use Neon in prod)
+db.sqlite3
+*.sqlite3
+
+# Env files
+.env
+.env.local
+.env.prod
+
+# Static files cache (should be re-generated in the container)
+staticfiles/
+static/
+
+# Editor/OS files
+.vscode/
+.idea/
+.DS_Store

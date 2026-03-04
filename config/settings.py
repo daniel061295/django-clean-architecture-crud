@@ -143,6 +143,10 @@ else:
     # Production SMTP config goes here
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
+# Resend configs
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+RESEND_DEFAULT_FROM_EMAIL = env("RESEND_DEFAULT_FROM_EMAIL", default="onboarding@resend.dev")
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.drf_exception_handler",

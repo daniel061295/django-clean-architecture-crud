@@ -42,7 +42,7 @@ from identity.infrastructure.repositories import (
     DjangoRoleRepository,
     DjangoUserRepository,
 )
-from identity.infrastructure.services.email_service import DjangoEmailService
+from identity.infrastructure.services.resend_email_service import ResendEmailService
 from identity.infrastructure.services.google_auth_service import GoogleAuthService
 from identity.infrastructure.services.password_service import (
     DjangoPasswordHasher,
@@ -60,7 +60,7 @@ class IdentityModule(Module):
         binder.bind(RoleRepository, to=DjangoRoleRepository)
         binder.bind(UserRepository, to=DjangoUserRepository)
         binder.bind(GoogleAuthServiceInterface, to=GoogleAuthService)
-        binder.bind(EmailServiceInterface, to=DjangoEmailService)
+        binder.bind(EmailServiceInterface, to=ResendEmailService)
         binder.bind(PasswordHasherInterface, to=DjangoPasswordHasher)
         binder.bind(PasswordTokenServiceInterface, to=DjangoPasswordTokenService)
 

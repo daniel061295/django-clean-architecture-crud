@@ -35,3 +35,13 @@ class PermissionAlreadyExistsError(DomainError):
 class AvatarValidationError(DomainError):
     """Raised when the avatar image fails validation."""
     pass
+
+
+class InvalidPasswordError(DomainError):
+    """Raised when an old password does not match the current password."""
+    pass
+
+
+class InvalidTokenError(DomainError):
+    """Raised when a password reset token is invalid or expired."""
+    pass

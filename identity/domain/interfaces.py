@@ -87,6 +87,42 @@ class UserRepository(ABC):
     def delete_avatar(self, user_id: UUID) -> User:
         """Deletes the user's avatar image. Returns the updated user entity."""
 
+    @abstractmethod
+    def update_password(self, user_id: UUID, hashed_password: str) -> None:
+        """Updates the user's password hash in the database."""
+
+
+class PasswordHasherInterface(ABC):
+    """Abstract interface for password hashing."""
+
+    @abstractmethod
+    def make_password(self, password: str) -> str:
+        """Hashes a plain text password."""
+
+    @abstractmethod
+    def check_password(self, password: str, encoded: str) -> bool:
+        """Verifies a plain text password against a hash. Returns True if they match."""
+
+
+class PasswordTokenServiceInterface(ABC):
+    """Abstract interface for generating and validating short-lived secure tokens."""
+
+    @abstractmethod
+    def generate_token(self, user_id: UUID) -> str:
+        """Generates a secure password reset token for the given user."""
+
+    @abstractmethod
+    def validate_token(self, user_id: UUID, token: str) -> bool:
+        """Validates if the provided token is valid and not expired for the given user."""
+
+
+class EmailServiceInterface(ABC):
+    """Abstract interface for sending transactional emails."""
+
+    @abstractmethod
+    def send_password_reset_email(self, to_email: str, reset_link: str) -> None:
+        """Sends an email containing the password reset link."""
+
 
 class GoogleAuthServiceInterface(ABC):
     """Abstract interface for Google Auth verification service."""

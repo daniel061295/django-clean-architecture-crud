@@ -174,3 +174,23 @@ class UserAvatarOutputSerializer(serializers.Serializer):
 class GoogleLoginInputSerializer(serializers.Serializer):
     """Deserializes Google OAuth login requests."""
     token = serializers.CharField(required=True)
+
+
+# --- Password Management Serializers ---
+
+class ChangePasswordInputSerializer(serializers.Serializer):
+    """Deserializes requests to change password for an authenticated user."""
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+
+class PasswordResetRequestInputSerializer(serializers.Serializer):
+    """Deserializes requests to send a password reset email."""
+    email = serializers.EmailField(required=True)
+
+
+class PasswordResetConfirmInputSerializer(serializers.Serializer):
+    """Deserializes requests to confirm a password reset with a token."""
+    uidb64 = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)

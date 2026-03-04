@@ -136,6 +136,13 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Email settings
+if DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    # Production SMTP config goes here
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.drf_exception_handler",

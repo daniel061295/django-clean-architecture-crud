@@ -24,9 +24,15 @@ from identity.application.use_cases import (
     RemoveRoleFromUser,
     UpdateUserAvatar,
     AuthenticateWithGoogle,
+    ChangeUserPassword,
+    RequestPasswordReset,
+    ConfirmPasswordReset,
 )
 from identity.domain.interfaces import (
+    EmailServiceInterface,
     GoogleAuthServiceInterface,
+    PasswordHasherInterface,
+    PasswordTokenServiceInterface,
     PermissionRepository,
     RoleRepository,
     UserRepository,
@@ -36,7 +42,12 @@ from identity.infrastructure.repositories import (
     DjangoRoleRepository,
     DjangoUserRepository,
 )
+from identity.infrastructure.services.email_service import DjangoEmailService
 from identity.infrastructure.services.google_auth_service import GoogleAuthService
+from identity.infrastructure.services.password_service import (
+    DjangoPasswordHasher,
+    DjangoPasswordTokenService,
+)
 
 
 class IdentityModule(Module):
@@ -49,6 +60,9 @@ class IdentityModule(Module):
         binder.bind(RoleRepository, to=DjangoRoleRepository)
         binder.bind(UserRepository, to=DjangoUserRepository)
         binder.bind(GoogleAuthServiceInterface, to=GoogleAuthService)
+        binder.bind(EmailServiceInterface, to=DjangoEmailService)
+        binder.bind(PasswordHasherInterface, to=DjangoPasswordHasher)
+        binder.bind(PasswordTokenServiceInterface, to=DjangoPasswordTokenService)
 
     @provider
     @singleton
@@ -103,3 +117,32 @@ class IdentityModule(Module):
         return AuthenticateWithGoogle(
             user_repository, role_repository, google_service, create_free_subscription
         )
+
+    @provider
+    @singleton
+    def provide_change_user_password(
+        self,
+        user_repository: UserRepository,
+        hasher: PasswordHasherInterface,
+    ) -> ChangeUserPassword:
+        return ChangeUserPassword(user_repository, hasher)
+
+    @provider
+    @singleton
+    def provide_request_password_reset(
+        self,
+        user_repository: UserRepository,
+        token_service: PasswordTokenServiceInterface,
+        email_service: EmailServiceInterface,
+    ) -> RequestPasswordReset:
+        return RequestPasswordReset(user_repository, token_service, email_service)
+
+    @provider
+    @singleton
+    def provide_confirm_password_reset(
+        self,
+        user_repository: UserRepository,
+        token_service: PasswordTokenServiceInterface,
+        hasher: PasswordHasherInterface,
+    ) -> ConfirmPasswordReset:
+        return ConfirmPasswordReset(user_repository, token_service, hasher)

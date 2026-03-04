@@ -168,3 +168,27 @@ class UserAvatarOutputDTO:
 class AuthenticateWithGoogleInputDTO:
     """Input DTO for the AuthenticateWithGoogle use case."""
     token: str
+
+
+# --- Password Management DTOs ---
+
+@dataclass
+class ChangeUserPasswordInputDTO:
+    """Input DTO for the ChangeUserPassword use case."""
+    user_id: UUID
+    old_password: str
+    new_password: str
+
+
+@dataclass
+class RequestPasswordResetInputDTO:
+    """Input DTO for the RequestPasswordReset use case."""
+    email: str
+
+
+@dataclass
+class ConfirmPasswordResetInputDTO:
+    """Input DTO for the ConfirmPasswordReset use case."""
+    user_id: UUID
+    token: str
+    new_password: str

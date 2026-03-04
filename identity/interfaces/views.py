@@ -21,6 +21,8 @@ from identity.application.dtos import (
     AssignPermissionToRoleInputDTO,
     AssignRoleToUserInputDTO,
     AuthenticateWithGoogleInputDTO,
+    ChangeUserPasswordInputDTO,
+    ConfirmPasswordResetInputDTO,
     CreatePermissionInputDTO,
     CreateRoleInputDTO,
     CreateUserInputDTO,
@@ -28,13 +30,16 @@ from identity.application.dtos import (
     GetUserPermissionsInputDTO,
     GetUserProfileInputDTO,
     RemoveRoleFromUserInputDTO,
+    RequestPasswordResetInputDTO,
     UpdateUserAvatarInputDTO,
 )
 from identity.application.use_cases import (
     AssignPermissionToRole,
     AssignRoleToUser,
     AuthenticateWithGoogle,
+    ChangeUserPassword,
     CheckUserPermission,
+    ConfirmPasswordReset,
     CreatePermission,
     CreateRole,
     CreateUser,
@@ -46,13 +51,22 @@ from identity.application.use_cases import (
     ListRoles,
     ListUsers,
     RemoveRoleFromUser,
+    RequestPasswordReset,
     UpdateUserAvatar,
 )
-from identity.domain.exceptions import AvatarValidationError, UserNotFoundError
+from identity.domain.exceptions import (
+    AvatarValidationError,
+    InvalidPasswordError,
+    InvalidTokenError,
+    UserNotFoundError,
+)
 from identity.interfaces.serializers import (
     AssignPermissionToRoleInputSerializer,
     AssignRoleToUserInputSerializer,
+    ChangePasswordInputSerializer,
     GoogleLoginInputSerializer,
+    PasswordResetConfirmInputSerializer,
+    PasswordResetRequestInputSerializer,
     PermissionInputSerializer,
     PermissionOutputSerializer,
     RoleInputSerializer,
@@ -457,3 +471,143 @@ class GoogleLoginView(APIView):
                 {"error": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# --- Password Management Views ---
+
+class ChangePasswordView(APIView):
+    """
+    POST /identity/me/change-password/ — Changes the current user's password.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @inject
+    def __init__(
+        self,
+        change_password_use_case: ChangeUserPassword = None,
+        **kwargs,
+    ) -> None:
+        self._change_password = change_password_use_case
+        super().__init__(**kwargs)
+
+    @extend_schema(
+        request=ChangePasswordInputSerializer,
+        responses={
+            200: {"description": "Password changed successfully"},
+            400: {"description": "Invalid old password or input"},
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        input_dto = ChangeUserPasswordInputDTO(
+            user_id=request.user.id,
+            old_password=serializer.validated_data["old_password"],
+            new_password=serializer.validated_data["new_password"],
+        )
+
+        try:
+            self._change_password.execute(input_dto)
+            return Response({"message": "Contraseña actualizada exitosamente"}, status=status.HTTP_200_OK)
+        except InvalidPasswordError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /identity/users/password-reset-request/ — Requests a password reset link.
+    """
+    permission_classes = []  # Public endpoint
+
+    @inject
+    def __init__(
+        self,
+        request_reset_use_case: RequestPasswordReset = None,
+        **kwargs,
+    ) -> None:
+        self._request_reset = request_reset_use_case
+        super().__init__(**kwargs)
+
+    @extend_schema(
+        request=PasswordResetRequestInputSerializer,
+        responses={
+            200: {"description": "Reset email sent (if email exists)"},
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = PasswordResetRequestInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        input_dto = RequestPasswordResetInputDTO(email=serializer.validated_data["email"])
+        
+        # Build frontend URL based on the origin (e.g., http://localhost:3000)
+        # Defaults to a local URL if Origin header is missing (e.g. from Swagger)
+        origin = request.headers.get("Origin")
+        if not origin or origin in ["http://localhost:8000", "http://127.0.0.1:8000", "https://localhost:8000"]:
+            origin = "http://localhost:3000"
+        
+        frontend_url = f"{origin}/reset-password"
+
+        self._request_reset.execute(input_dto, frontend_url=frontend_url)
+        
+        # Always return 200 OK to prevent email enumeration
+        return Response(
+            {"message": "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña."},
+            status=status.HTTP_200_OK
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /identity/users/password-reset-confirm/ — Confirms password reset with token.
+    """
+    permission_classes = []  # Public endpoint
+
+    @inject
+    def __init__(
+        self,
+        confirm_reset_use_case: ConfirmPasswordReset = None,
+        **kwargs,
+    ) -> None:
+        self._confirm_reset = confirm_reset_use_case
+        super().__init__(**kwargs)
+
+    @extend_schema(
+        request=PasswordResetConfirmInputSerializer,
+        responses={
+            200: {"description": "Password reset successfully"},
+            400: {"description": "Invalid token or UID"},
+        },
+    )
+    def post(self, request: Request) -> Response:
+        print("=== RESET PASSWORD CONFIRM ===")
+        print("Data:", request.data)
+        
+        serializer = PasswordResetConfirmInputSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            print("Validation Errors:", serializer.errors)
+            raise
+
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+
+        try:
+            uid = force_str(urlsafe_base64_decode(serializer.validated_data["uidb64"]))
+            user_id = UUID(uid)
+        except (ValueError, TypeError, UnicodeDecodeError):
+            return Response({"error": "El enlace es inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        input_dto = ConfirmPasswordResetInputDTO(
+            user_id=user_id,
+            token=serializer.validated_data["token"],
+            new_password=serializer.validated_data["new_password"],
+        )
+
+        try:
+            self._confirm_reset.execute(input_dto)
+            return Response({"message": "Contraseña restablecida exitosamente"}, status=status.HTTP_200_OK)
+        except InvalidTokenError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -150,3 +150,9 @@ class DjangoUserRepository(UserRepository):
         user_model.avatar = ""
         user_model.save(update_fields=["avatar"])
         return self._get_with_roles(user_model)
+
+    def update_password(self, user_id: UUID, hashed_password: str) -> None:
+        """Updates the user's password hash in the database."""
+        user_model = CustomUserModel.objects.get(id=user_id)
+        user_model.password = hashed_password
+        user_model.save(update_fields=["password"])

@@ -13,6 +13,9 @@ from identity.interfaces.views import (
     RoleViewSet,
     UserViewSet,
     GoogleLoginView,
+    ChangePasswordView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
 )
 
 router = DefaultRouter()
@@ -21,10 +24,13 @@ router.register(r"roles", RoleViewSet, basename="role")
 router.register(r"users", UserViewSet, basename="user")
 
 urlpatterns = [
+    path("users/password-reset-request/", PasswordResetRequestView.as_view(), name="identity-password-reset-request"),
+    path("users/password-reset-confirm/", PasswordResetConfirmView.as_view(), name="identity-password-reset-confirm"),
     path("", include(router.urls)),
     path("me/", UserProfileView.as_view(), name="identity-me-profile"),
     path("me/avatar/", UserAvatarView.as_view(), name="identity-me-avatar"),
     path("me/permissions/", MyPermissionsView.as_view(), name="identity-me-permissions"),
+    path("me/change-password/", ChangePasswordView.as_view(), name="identity-me-change-password"),
 ]
 
 # Auth token endpoints — registered separately in config/urls.py under /auth/

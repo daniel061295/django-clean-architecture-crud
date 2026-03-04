@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 import boto3
 from botocore.exceptions import ClientError
+from botocore.config import Config
 from django.conf import settings
 
 from core.domain.services import StorageServiceInterface
@@ -22,13 +23,14 @@ class CloudflareR2StorageService(StorageServiceInterface):
         access_key = getattr(settings, "CLOUD_FLARE_ACCESS_KEY_ID", "")
         secret_key = getattr(settings, "CLOUD_FLARE_SECRET_ACCESS_KEY", "")
 
-        # Initialize boto3 client for Cloudflare R2
+        # Initialize boto3 client for Cloudflare R2 with explicit v4 signature
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name="auto",  # R2 commonly accepts 'auto' or 'us-east-1'
+            config=Config(signature_version="s3v4"),
         )
 
     def upload_file(self, file_data: bytes, file_name: str, content_type: str) -> str:

@@ -23,7 +23,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . /app/
 
 # Recolectar archivos estáticos para producción
-RUN python manage.py collectstatic --noinput
+# Pasamos una DATABASE_URL "dummy" porque Railway no inyecta variables secretas en la fase de Build, 
+# y Django necesita que la variable exista para arrancar y recolectar los estáticos.
+RUN DATABASE_URL=postgresql://dummy:dummy@localhost/dummy python manage.py collectstatic --noinput
 
 # Exponer el puerto que usará Gunicorn
 EXPOSE 8000

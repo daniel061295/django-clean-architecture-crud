@@ -7,6 +7,8 @@ from store.sale.di import SaleModule
 from store.plant_health.di import PlantHealthModule
 from store.history.di import HistoryModule
 from store.tips.di import TipsModule
+from core.domain.services import StorageServiceInterface
+from core.infrastructure.services.r2_storage_service import CloudflareR2StorageService
 
 class StoreModule(Module):
     """
@@ -15,6 +17,7 @@ class StoreModule(Module):
     """
 
     def configure(self, binder: Binder):
+        binder.bind(StorageServiceInterface, to=CloudflareR2StorageService)
         binder.install(CategoryModule())
         binder.install(TipsModule())
         binder.install(PlantItemModule())

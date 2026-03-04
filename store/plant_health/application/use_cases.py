@@ -9,6 +9,16 @@ import logging
 from datetime import date
 
 from injector import inject
+"""
+Plant Health Application Use Case — analyzes plant health images.
+
+Enforces RBAC permission check, active subscription validation,
+and daily scan limit enforcement before delegating to the AI service.
+"""
+import logging
+from datetime import date
+
+from injector import inject
 
 from billing.domain.exceptions import NoActiveSubscriptionError, ScanLimitExceededError
 from billing.domain.interfaces import DailyUsageRepository, PlanRepository, SubscriptionRepository
@@ -18,6 +28,7 @@ from store.plant_health.application.dtos import AnalyzePlantHealthInputDTO, Plan
 from store.plant_health.domain.interfaces import PlantHealthService
 from store.history.application.use_cases import CreateHistoryUseCase
 from store.history.application.dtos import CreateHistoryInputDTO
+from core.domain.services import StorageServiceInterface
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +61,7 @@ class AnalyzePlantHealth:
         subscription_repository: SubscriptionRepository,
         plan_repository: PlanRepository,
         daily_usage_repository: DailyUsageRepository,
+        storage_service: StorageServiceInterface,
     ) -> None:
         self._service = service
         self._create_history_use_case = create_history_use_case
@@ -57,6 +69,7 @@ class AnalyzePlantHealth:
         self._sub_repo = subscription_repository
         self._plan_repo = plan_repository
         self._usage_repo = daily_usage_repository
+        self._storage_service = storage_service
 
     def execute(self, input_dto: AnalyzePlantHealthInputDTO) -> PlantHealthAnalysisResponseDTO:
         """
@@ -107,11 +120,19 @@ class AnalyzePlantHealth:
         report = self._service.analyze_photo(input_dto.photo)
 
         # Step 8 — Save history silently
-        photo_base64: str = ""
+        import uuid
+        from core.utils.images import optimize_image
+
+        photo_url: str = ""
+        r2_key: str = ""
         try:
             input_dto.photo.seek(0)
             photo_bytes = input_dto.photo.read()
-            photo_base64 = base64.b64encode(photo_bytes).decode("utf-8")
+            
+            optimized_bytes = optimize_image(photo_bytes, max_size=(1080, 1080), quality=80)
+            
+            file_name = f"plant_health/{input_dto.user_id}_{uuid.uuid4().hex[:8]}.jpg"
+            r2_key = self._storage_service.upload_file(optimized_bytes, file_name, "image/jpeg")
 
             history_dto = CreateHistoryInputDTO(
                 is_healthy=report.is_healthy,
@@ -120,10 +141,11 @@ class AnalyzePlantHealth:
                 confidence=report.confidence,
                 treatment=report.treatment,
                 urgency_level=report.urgency_level,
-                photo=photo_base64,
+                photo=r2_key,
                 user_id=str(input_dto.user_id),
             )
             self._create_history_use_case.execute(history_dto)
+            photo_url = self._storage_service.get_signed_url(r2_key) or r2_key
         except Exception as e:
             logger.error("Failed to save plant health history: %s", str(e), exc_info=True)
 
@@ -139,5 +161,5 @@ class AnalyzePlantHealth:
             confidence=report.confidence,
             treatment=report.treatment,
             urgency_level=report.urgency_level,
-            photo=photo_base64,
+            photo=photo_url,  # Returning the URL for the frontend
         )

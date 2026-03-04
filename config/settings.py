@@ -147,6 +147,13 @@ else:
 RESEND_API_KEY = env("RESEND_API_KEY", default="")
 RESEND_DEFAULT_FROM_EMAIL = env("RESEND_DEFAULT_FROM_EMAIL", default="onboarding@resend.dev")
 
+# Cloudflare R2 
+CLOUD_FLARE_ACCOUNT_ID = env("CLOUD_FLARE_ACCOUNT_ID", default="")
+CLOUD_FLARE_ACCESS_KEY_ID = env("CLOUD_FLARE_ACCESS_KEY_ID", default="")
+CLOUD_FLARE_SECRET_ACCESS_KEY = env("CLOUD_FLARE_SECRET_ACCESS_KEY", default="")
+CLOUD_FLARE_R2_BUCKET_NAME = env("CLOUD_FLARE_R2_BUCKET_NAME", default="plats-scanner-project-images")
+CLOUD_FLARE_R2_CUSTOM_DOMAIN = env("CLOUD_FLARE_R2_CUSTOM_DOMAIN", default="")
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.drf_exception_handler",

@@ -42,6 +42,8 @@ from identity.infrastructure.repositories import (
     DjangoRoleRepository,
     DjangoUserRepository,
 )
+from core.domain.services import StorageServiceInterface
+from core.infrastructure.services.r2_storage_service import CloudflareR2StorageService
 from identity.infrastructure.services.resend_email_service import ResendEmailService
 from identity.infrastructure.services.google_auth_service import GoogleAuthService
 from identity.infrastructure.services.password_service import (
@@ -59,6 +61,7 @@ class IdentityModule(Module):
         binder.bind(PermissionRepository, to=DjangoPermissionRepository)
         binder.bind(RoleRepository, to=DjangoRoleRepository)
         binder.bind(UserRepository, to=DjangoUserRepository)
+        binder.bind(StorageServiceInterface, to=CloudflareR2StorageService)
         binder.bind(GoogleAuthServiceInterface, to=GoogleAuthService)
         binder.bind(EmailServiceInterface, to=ResendEmailService)
         binder.bind(PasswordHasherInterface, to=DjangoPasswordHasher)
@@ -89,21 +92,21 @@ class IdentityModule(Module):
 
     @provider
     @singleton
-    def provide_get_user_profile(self, repository: UserRepository) -> GetUserProfile:
+    def provide_get_user_profile(self, repository: UserRepository, storage_service: StorageServiceInterface) -> GetUserProfile:
         """Provides GetUserProfile use case."""
-        return GetUserProfile(repository)
+        return GetUserProfile(repository, storage_service)
 
     @provider
     @singleton
-    def provide_update_user_avatar(self, repository: UserRepository) -> UpdateUserAvatar:
+    def provide_update_user_avatar(self, repository: UserRepository, storage_service: StorageServiceInterface) -> UpdateUserAvatar:
         """Provides UpdateUserAvatar use case."""
-        return UpdateUserAvatar(repository)
+        return UpdateUserAvatar(repository, storage_service)
 
     @provider
     @singleton
-    def provide_delete_user_avatar(self, repository: UserRepository) -> DeleteUserAvatar:
+    def provide_delete_user_avatar(self, repository: UserRepository, storage_service: StorageServiceInterface) -> DeleteUserAvatar:
         """Provides DeleteUserAvatar use case."""
-        return DeleteUserAvatar(repository)
+        return DeleteUserAvatar(repository, storage_service)
 
     @provider
     def provide_authenticate_with_google(

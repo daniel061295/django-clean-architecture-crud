@@ -147,7 +147,8 @@ class DjangoUserRepository(UserRepository):
     def delete_avatar(self, user_id: UUID) -> User:
         """Deletes the user's avatar image. Returns updated user entity."""
         user_model = CustomUserModel.objects.get(id=user_id)
-        user_model.avatar = ""
+        from identity.utils import get_default_user_avatar
+        user_model.avatar = get_default_user_avatar()
         user_model.save(update_fields=["avatar"])
         return self._get_with_roles(user_model)
 

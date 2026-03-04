@@ -3,6 +3,7 @@ from store.history.domain.interfaces import HistoryRepository
 from store.history.application.dtos import CreateHistoryInputDTO, HistoryOutputDTO, GetHistoryInputDTO, GetHistoryByUserInputDTO
 from typing import List
 from injector import inject
+from core.domain.services import StorageServiceInterface
 
 class CreateHistoryUseCase:
     """
@@ -49,14 +50,19 @@ class GetHistoryUseCase:
     """
 
     @inject
-    def __init__(self, repository: HistoryRepository):
+    def __init__(self, repository: HistoryRepository, storage_service: StorageServiceInterface):
         self._repository = repository
+        self._storage_service = storage_service
 
     def execute(self, input_dto: GetHistoryInputDTO) -> HistoryOutputDTO:
         history = self._repository.get_by_id(input_dto.id)
         if not history:
             raise ValueError(f"History with ID {input_dto.id} not found.")
             
+        photo_url = history.photo
+        if photo_url and not photo_url.startswith("data:image"):
+            photo_url = self._storage_service.get_signed_url(history.photo) or history.photo
+
         return HistoryOutputDTO(
             id=str(history.id),
             is_healthy=history.is_healthy,
@@ -65,7 +71,7 @@ class GetHistoryUseCase:
             confidence=history.confidence,
             treatment=history.treatment,
             urgency_level=history.urgency_level,
-            photo=history.photo,
+            photo=photo_url,
             user_id=history.user_id,
             created_at=str(history.created_at)
         )
@@ -76,13 +82,18 @@ class GetAllHistoryUseCase:
     """
 
     @inject
-    def __init__(self, repository: HistoryRepository):
+    def __init__(self, repository: HistoryRepository, storage_service: StorageServiceInterface):
         self._repository = repository
+        self._storage_service = storage_service
 
     def execute(self) -> List[HistoryOutputDTO]:
         histories = self._repository.get_all()
-        return [
-            HistoryOutputDTO(
+        dtos = []
+        for h in histories:
+            photo_url = h.photo
+            if photo_url and not photo_url.startswith("data:image"):
+                photo_url = self._storage_service.get_signed_url(h.photo) or h.photo
+            dtos.append(HistoryOutputDTO(
                 id=str(h.id),
                 is_healthy=h.is_healthy,
                 title=h.title,
@@ -90,11 +101,11 @@ class GetAllHistoryUseCase:
                 confidence=h.confidence,
                 treatment=h.treatment,
                 urgency_level=h.urgency_level,
-                photo=h.photo,
+                photo=photo_url,
                 user_id=h.user_id,
                 created_at=str(h.created_at)
-            ) for h in histories
-        ]
+            ))
+        return dtos
 
 class GetHistoryByUserUseCase:
     """
@@ -102,13 +113,18 @@ class GetHistoryByUserUseCase:
     """
 
     @inject
-    def __init__(self, repository: HistoryRepository):
+    def __init__(self, repository: HistoryRepository, storage_service: StorageServiceInterface):
         self._repository = repository
+        self._storage_service = storage_service
 
     def execute(self, input_dto: GetHistoryByUserInputDTO) -> List[HistoryOutputDTO]:
         histories = self._repository.get_by_user_id(input_dto.user_id)
-        return [
-            HistoryOutputDTO(
+        dtos = []
+        for h in histories:
+            photo_url = h.photo
+            if photo_url and not photo_url.startswith("data:image"):
+                photo_url = self._storage_service.get_signed_url(h.photo) or h.photo
+            dtos.append(HistoryOutputDTO(
                 id=str(h.id),
                 is_healthy=h.is_healthy,
                 title=h.title,
@@ -116,11 +132,11 @@ class GetHistoryByUserUseCase:
                 confidence=h.confidence,
                 treatment=h.treatment,
                 urgency_level=h.urgency_level,
-                photo=h.photo,
+                photo=photo_url,
                 user_id=h.user_id,
                 created_at=str(h.created_at)
-            ) for h in histories
-        ]
+            ))
+        return dtos
 
 class DeleteHistoryUseCase:
     """
@@ -132,6 +148,16 @@ class DeleteHistoryUseCase:
         self._repository = repository
 
     def execute(self, input_dto: GetHistoryInputDTO) -> None:
+        history = self._repository.get_by_id(input_dto.id)
+        if not history:
+            raise ValueError(f"History with ID {input_dto.id} not found.")
+            
+        if history.photo and not history.photo.startswith("data:image"):
+            try:
+                self._storage_service.delete_file(history.photo)
+            except Exception:
+                pass
+
         success = self._repository.delete(input_dto.id)
         if not success:
             raise ValueError(f"History with ID {input_dto.id} not found.")

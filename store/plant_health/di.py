@@ -6,6 +6,7 @@ from store.plant_health.domain.interfaces import PlantHealthService
 from store.plant_health.infrastructure.ai.services import GeminiPlantHealthService
 from store.plant_health.application.use_cases import AnalyzePlantHealth
 from store.history.application.use_cases import CreateHistoryUseCase
+from core.domain.services import StorageServiceInterface
 from django.conf import settings
 
 
@@ -34,6 +35,7 @@ class PlantHealthModule(Module):
         subscription_repository: SubscriptionRepository,
         plan_repository: PlanRepository,
         daily_usage_repository: DailyUsageRepository,
+        storage_service: StorageServiceInterface,
     ) -> AnalyzePlantHealth:
         """Provides a fully assembled AnalyzePlantHealth use case."""
         return AnalyzePlantHealth(
@@ -43,4 +45,5 @@ class PlantHealthModule(Module):
             subscription_repository=subscription_repository,
             plan_repository=plan_repository,
             daily_usage_repository=daily_usage_repository,
+            storage_service=storage_service,
         )

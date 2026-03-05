@@ -541,7 +541,12 @@ class GetUserProfile:
         permission_codes = list({p.code for role in user.roles for p in role.permissions})
         
         avatar_url = user.avatar
-        if avatar_url and not avatar_url.startswith("data:image") and avatar_url != "":
+        if (
+            avatar_url 
+            and not avatar_url.startswith("data:image") 
+            and not avatar_url.startswith("http") 
+            and avatar_url != ""
+        ):
             # Generate Signed URL for R2 objects
             avatar_url = self._storage_service.get_signed_url(user.avatar) or user.avatar
 

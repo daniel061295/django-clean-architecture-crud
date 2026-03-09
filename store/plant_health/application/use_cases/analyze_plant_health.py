@@ -4,17 +4,6 @@ Plant Health Application Use Case — analyzes plant health images.
 Enforces RBAC permission check, active subscription validation,
 and daily scan limit enforcement before delegating to the AI service.
 """
-import base64
-import logging
-from datetime import date
-
-from injector import inject
-"""
-Plant Health Application Use Case — analyzes plant health images.
-
-Enforces RBAC permission check, active subscription validation,
-and daily scan limit enforcement before delegating to the AI service.
-"""
 import logging
 from datetime import date
 

@@ -31,4 +31,4 @@ RUN DATABASE_URL=postgresql://dummy:dummy@localhost/dummy python manage.py colle
 EXPOSE 8000
 
 # Script de entrada para correr migraciones e iniciar Gunicorn
-CMD python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000
+CMD python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --timeout 120

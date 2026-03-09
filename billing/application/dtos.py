@@ -132,3 +132,20 @@ class CreateSubscriptionInputDTO:
 class CreateFreeSubscriptionForUserInputDTO:
     """Input DTO for creating FREE subscription automatically for new users."""
     user_id: UUID
+
+@dataclass
+class CreatePaymentIntentInputDTO:
+    user_id: UUID
+    plan_id: UUID
+
+@dataclass
+class CreatePaymentIntentOutputDTO:
+    client_secret: str
+    amount: float
+    currency: str
+
+@dataclass
+class HandleStripeWebhookInputDTO:
+    payload: bytes
+    sig_header: str
+
